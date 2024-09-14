@@ -1,0 +1,157 @@
+.action-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-btn i {
+    margin: 0;
+}
+
+.payout-input {
+    width: 80px;
+}
+
+.active-bonus {
+    background-color: #d4edda !important;
+}
+
+.play-bonus-btn {
+    color: #28a745;
+}
+
+.play-bonus-btn:hover {
+    color: #218838;
+}
+
+.play-bonus-btn .fa-play:hover {
+    color: white;
+}
+
+.btn-success .fa-play {
+    color: white;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.table-striped tbody tr:nth-of-type(even) {
+    background-color: #fff;
+}
+
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    font-weight: bold;
+}
+
+#bonus-table {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#bonus-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+#bonus-table td {
+    vertical-align: middle;
+}
+
+#add-bonus-form {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#add-bonus-form .form-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+}
+
+.slot-search-container {
+    position: relative;
+    flex-grow: 1;
+    margin-right: 10px;
+}
+
+#add-bonus-form .form-group {
+    margin-bottom: 0;
+    margin-right: 10px;
+}
+
+#add-bonus-form input[name="aposta"],
+#add-bonus-form input[name="saldo_restante"] {
+    width: 95px;
+}
+
+#add-bonus-form input[name="nota"],
+#add-bonus-form input[name="padrinho"] {
+    width: 120px;
+}
+
+#add-bonus-form button[type="submit"] {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background-color: white;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.suggestion-item {
+    padding: 0.5rem;
+    cursor: pointer;
+}
+
+.suggestion-item:hover {
+    background-color: #f8f9fa;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    #add-bonus-form .form-row {
+        flex-wrap: wrap;
+    }
+
+    .slot-search-container,
+    #add-bonus-form .form-group,
+    #add-bonus-form button[type="submit"] {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+
+    #add-bonus-form input[name="aposta"],
+    #add-bonus-form input[name="saldo_restante"],
+    #add-bonus-form input[name="nota"],
+    #add-bonus-form input[name="padrinho"] {
+        width: 100%;
+    }
+
+    #add-bonus-form button[type="submit"] {
+        height: auto;
+    }
+}

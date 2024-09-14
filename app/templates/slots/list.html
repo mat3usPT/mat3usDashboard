@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1>Slot List</h1>
+
+<div class="input-group mb-3">
+    <input type="text" id="search_name" class="form-control" placeholder="Search by name" value="{{ search_name }}">
+    <input type="text" id="search_provider" class="form-control" placeholder="Search by provider" value="{{ search_provider }}">
+    <div class="input-group-append">
+        <button class="btn btn-outline-secondary" type="button" onclick="search()">Search</button>
+        <button class="btn btn-outline-secondary" type="button" onclick="resetSearch()">✕</button>
+    </div>
+</div>
+
+<button type="button" class="btn btn-primary mb-3" data-toggle="modal" data-target="#createSlotModal">
+    Create New Slot
+</button>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th><a href="{{ url_for('slots.list_slots', sort='name', order='asc' if sort == 'name' and order == 'desc' else 'desc', search_name=search_name, search_provider=search_provider) }}">Name</a></th>
+            <th><a href="{{ url_for('slots.list_slots', sort='provider', order='asc' if sort == 'provider' and order == 'desc' else 'desc', search_name=search_name, search_provider=search_provider) }}">Provider</a></th>
+            <th><a href="{{ url_for('slots.list_slots', sort='rtp', order='asc' if sort == 'rtp' and order == 'desc' else 'desc', search_name=search_name, search_provider=search_provider) }}">RTP</a></th>
+            <th><a href="{{ url_for('slots.list_slots', sort='volatility', order='asc' if sort == 'volatility' and order == 'desc' else 'desc', search_name=search_name, search_provider=search_provider) }}">Volatility</a></th>
+            <th><a href="{{ url_for('slots.list_slots', sort='potential', order='asc' if sort == 'potential' and order == 'desc' else 'desc', search_name=search_name, search_provider=search_provider) }}">Potential</a></th>
+            <th><a href="{{ url_for('slots.list_slots', sort='best_x', order='asc' if sort == 'best_x' and order == 'desc' else 'desc', search_name=search_name, search_provider=search_provider) }}">Best X</a></th>
+            <th><a href="{{ url_for('slots.list_slots', sort='best_euro', order='asc' if sort == 'best_euro' and order == 'desc' else 'desc', search_name=search_name, search_provider=search_provider) }}">Best €</a></th>
+            <th><a href="{{ url_for('slots.list_slots', sort='creation_date', order='asc' if sort == 'creation_date' and order == 'desc' else 'desc', search_name=search_name, search_provider=search_provider) }}">Creation Date</a></th>
+            <th>Image</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for slot in pagination.items %}
+        <tr>
+            <td>{{ slot.name }}</td>
+            <td>{{ slot.provider }}</td>
+            <td>{{ "{:.2f}%".format(slot.rtp * 100).replace('.', ',') if slot.rtp is not none else '-' }}</td>
+            <td>{{ "{}/10".format(slot.volatility) if slot.volatility is not none else '-' }}</td>
+            <td>
+                {% if slot.potential is not none %}
+                    {% if slot.potential == slot.potential|round(0) %}
+                        {{ "{:,.0f}x".format(slot.potential).replace(',', '.') }}
+                    {% else %}
+                        {{ "{:,.1f}x".format(slot.potential).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                    {% endif %}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td>
+                {% if slot.best_x is not none %}
+                    {% if slot.best_x == slot.best_x|round(0) %}
+                        {{ "{:,.0f}x".format(slot.best_x).replace(',', '.') }}
+                    {% else %}
+                        {{ "{:,.2f}x".format(slot.best_x).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                    {% endif %}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td>
+                {% if slot.best_euro is not none %}
+                    {% if slot.best_euro == slot.best_euro|round(0) %}
+                        {{ "€{:,.0f}".format(slot.best_euro).replace(',', '.') }}
+                    {% else %}
+                        {{ "€{:,.2f}".format(slot.best_euro).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                    {% endif %}
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+            <td>{{ slot.creation_date.strftime('%Y-%m-%d %H:%M:%S') if slot.creation_date else '-' }}</td>
+            <td>
+                {% if slot.image %}
+                    <img src="{{ url_for('static', filename=slot.image) }}" alt="{{ slot.name }}" style="max-width: 100px; max-height: 100px;">
+                {% else %}
+                    No image
+                {% endif %}
+            </td>
+            <td>
+                <button class="btn btn-sm btn-primary edit-slot-btn" data-id="{{ slot.id }}">Edit</button>
+                <button class="btn btn-sm btn-danger delete-slot-btn" data-id="{{ slot.id }}">Delete</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<nav aria-label="Page navigation">
+    <ul class="pagination">
+        {% for page in pagination.iter_pages() %}
+            {% if page %}
+                <li class="page-item {% if page == pagination.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('slots.list_slots', page=page, sort=sort, order=order, search_name=search_name, search_provider=search_provider) }}">{{ page }}</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+            {% endif %}
+        {% endfor %}
+    </ul>
+</nav>
+
+<!-- Create Slot Modal -->
+<div class="modal fade" id="createSlotModal" tabindex="-1" role="dialog" aria-labelledby="createSlotModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createSlotModalLabel">Create Slot</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- The form content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Slot Modal -->
+<div class="modal fade" id="editSlotModal" tabindex="-1" role="dialog" aria-labelledby="editSlotModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editSlotModalLabel">Edit Slot</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- O conteúdo do formulário de edição será carregado aqui -->
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

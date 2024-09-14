@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Bem-vindo ao Bonus Hunt Tracker</h1>
+<p>Use este aplicativo para gerenciar seus Bonus Hunts e Slots.</p>
+<a href="{{ url_for('bonus_hunts.list_hunts') }}" class="btn btn-primary">Ver Bonus Hunts</a>
+<a href="{{ url_for('slots.list_slots') }}" class="btn btn-secondary">Ver Slots</a>
+{% endblock %}

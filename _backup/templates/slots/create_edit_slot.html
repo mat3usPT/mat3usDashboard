@@ -1,0 +1,45 @@
+<form id="slotForm" method="POST" enctype="multipart/form-data" {% if slot %}data-id="{{ slot.id }}"{% endif %}>
+    <div class="form-group">
+        <label for="name">Name</label>
+        <input type="text" class="form-control" id="name" name="name" value="{{ slot.name if slot else '' }}" required>
+    </div>
+    <div class="form-group">
+        <label for="provider">Provider</label>
+        <input type="text" class="form-control" id="provider" name="provider" value="{{ slot.provider if slot else '' }}" required>
+    </div>
+    <div class="form-group">
+        <label for="rtp">RTP (%)</label>
+        <input type="number" class="form-control" id="rtp" name="rtp" step="0.01" min="0" max="100" value="{{ (slot.rtp * 100)|round(2) if slot and slot.rtp else '' }}">
+    </div>
+    <div class="form-group">
+        <label for="volatility">Volatility (1-10)</label>
+        <input type="number" class="form-control" id="volatility" name="volatility" min="1" max="10" value="{{ slot.volatility if slot else '' }}">
+    </div>
+    <div class="form-group">
+        <label for="potential">Potential</label>
+        <input type="number" class="form-control" id="potential" name="potential" step="0.01" min="0" value="{{ slot.potential if slot else '' }}">
+    </div>
+    <div class="form-group">
+        <label for="best_x">Best X</label>
+        <input type="number" class="form-control" id="best_x" name="best_x" step="0.01" min="0" value="{{ slot.best_x if slot else '' }}">
+    </div>
+    <div class="form-group">
+        <label for="best_euro">Best € (in cents)</label>
+        <input type="number" class="form-control" id="best_euro" name="best_euro" step="1" min="0" value="{{ slot.best_euro if slot else '' }}">
+    </div>
+    <div class="form-group">
+        <label for="image">Image</label>
+        <input type="file" class="form-control-file" id="image" name="image">
+    </div>
+    <div class="form-group">
+        <label for="image_link">Or image link</label>
+        <input type="url" class="form-control" id="image_link" name="image_link">
+    </div>
+    {% if slot and slot.image %}
+    <div class="form-group">
+        <label>Current image</label>
+        <img src="{{ url_for('static', filename=slot.image) }}" alt="{{ slot.name }}" style="max-width: 200px; max-height: 200px;">
+    </div>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">{{ 'Update' if slot else 'Create' }}</button>
+</form>

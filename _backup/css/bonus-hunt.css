@@ -1,0 +1,19 @@
+.active-bonus {
+    background-color: #d4edda !important;
+}
+
+.play-bonus-btn.btn-success {
+    color: #fff;
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.play-bonus-btn.btn-secondary {
+    color: #fff;
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.payout-input {
+    width: 100px;
+}
