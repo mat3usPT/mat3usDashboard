@@ -12,8 +12,8 @@ git commit -m "Backup automático $DATETIME"
 # Criar uma tag com a data e hora
 git tag -a "backup-$DATETIME" -m "Backup automático $DATETIME"
 
-echo "Backup completo: tag backup-$DATETIME criada"
+# Fazer push para o repositório remoto
+git push origin main
+git push --tags
 
-# Opcional: Fazer push para o repositório remoto
-# git push origin main
-# git push --tags
+echo "Backup completo: tag backup-$DATETIME criada e enviada para o repositório remoto"
