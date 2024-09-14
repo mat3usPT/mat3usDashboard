@@ -9,19 +9,22 @@ document.addEventListener('DOMContentLoaded', function () {
     setupAddBonusForm();
 
     // Verifica se estamos na página de visualização de um Bonus Hunt individual
-    //if (document.querySelector('.bonus-hunt-view')) {
+    if (document.querySelector('.bonus-hunt-view')) {
+               // Chama updateStatistics imediatamente após o carregamento da página
+               const huntData = JSON.parse(document.getElementById('hunt-data').textContent);
+               updateStatistics(huntData);
+               updateBonusTable(huntData);
     //    setupSlotSearch();
     //    setupBonusActions();
     //    setupSaveBonusEdit();
     //    setupAddBonusForm();
-    //}
+    }
 });
 
 
 ///////////////// LIST.HTML //////////////////////////
 //////////////////////////////////////////////////////
 //////////////////////////////////////////////////////
-
 
 function setupHuntActions() {
     const huntTable = document.querySelector('.table');
@@ -549,11 +552,11 @@ function formatCurrency(value) {
 
 // Função de formatação de multiplicador atualizada
 function formatMultiplier(value) {
-    return value != null ? value.toFixed(2) + 'x' : '';
+    return value != null ? value.toFixed(0) + 'x' : '';
 }
 
 // Função de formatação de número atualizada
-function formatNumber(value, decimals = 2) {
+function formatNumber(value, decimals = 1) {
     return value != null ? Number(value).toFixed(decimals) : '';
 }
 

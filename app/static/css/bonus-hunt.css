@@ -12,7 +12,7 @@
 }
 
 .payout-input {
-    width: 80px;
+    width: 110px;
 }
 
 .active-bonus {
@@ -193,7 +193,7 @@
 
 #bonus-table th:nth-child(2),
 #bonus-table td:nth-child(2) {
-    width: 32%;
+    width: 31%;
 }
 
 #bonus-table th:nth-child(3),
@@ -203,12 +203,12 @@
 
 #bonus-table th:nth-child(4),
 #bonus-table td:nth-child(4) {
-    width: 10%;
+    width: 12%;
 }
 
 #bonus-table th:nth-child(5),
 #bonus-table td:nth-child(5) {
-    width: 10%;
+    width: 9%;
 }
 
 #bonus-table th:nth-child(6),

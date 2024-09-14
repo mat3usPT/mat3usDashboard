@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="bonus-hunt-view"></div>
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="d-flex align-items-center">
@@ -28,16 +29,14 @@
                 <div class="card-body">
                     <p><strong>Status:</strong> <span id="status">{{ hunt.status }}</span></p>
                     <p><strong>Created:</strong> {{ hunt.data_criacao.strftime('%d/%m/%Y %H:%M') }}</p>
-                    <p><strong>Starting Balance:</strong> €<span id="custo-inicial">{{ "%.2f"|format(hunt.custo_inicial)
+                    <p><strong>Starting Balance:</strong> <span id="custo-inicial">{{ hunt.custo_inicial }}</span></p>
+                    <p><strong>Investment:</strong> <span id="investimento">{{ hunt.estatisticas.investimento }}</span>
+                    </p>
+                    <p><strong>Remaining Balance:</strong> <span id="saldo-restante">{{ hunt.estatisticas.saldo_restante
                             }}</span></p>
-                    <p><strong>Investment:</strong> €<span id="investimento">{{
-                            "%.2f"|format(hunt.estatisticas.investimento) }}</span></p>
-                    <p><strong>Remaining Balance:</strong> €<span id="saldo-restante">{{
-                            "%.2f"|format(hunt.estatisticas.saldo_restante) }}</span></p>
-                    <p><strong>Total Won:</strong> €<span id="total-ganho">{{
-                            "%.2f"|format(hunt.estatisticas.total_ganho) }}</span></p>
-                    <p><strong>Profit/Loss:</strong> €<span id="lucro-prejuizo">{{
-                            "%.2f"|format(hunt.estatisticas.lucro_prejuizo) }}</span></p>
+                    <p><strong>Total Won:</strong> <span id="total-ganho">{{ hunt.estatisticas.total_ganho }}</span></p>
+                    <p><strong>Profit/Loss:</strong> <span id="lucro-prejuizo">{{ hunt.estatisticas.lucro_prejuizo
+                            }}</span></p>
                 </div>
             </div>
         </div>
@@ -51,10 +50,10 @@
                     <p><strong>Bonuses:</strong> <span id="num-bonus">{{ hunt.estatisticas.num_bonus }}</span></p>
                     <p><strong>Open Bonuses:</strong> <span id="num-bonus-abertos">{{
                             hunt.estatisticas.num_bonus_abertos }}</span></p>
-                    <p><strong>AVG Init. Bet:</strong> €<span id="media-aposta-inicial">{{
-                            "%.2f"|format(hunt.estatisticas.media_aposta_inicial) }}</span></p>
-                    <p><strong>AVG Remaining Bet:</strong> €<span id="media-aposta">{{
-                            "%.2f"|format(hunt.estatisticas.media_aposta) }}</span></p>
+                    <p><strong>AVG Init. Bet:</strong> <span id="media-aposta-inicial">{{
+                            hunt.estatisticas.media_aposta_inicial }}</span></p>
+                    <p><strong>AVG Remaining Bet:</strong> <span id="media-aposta">{{ hunt.estatisticas.media_aposta
+                            }}</span></p>
                 </div>
             </div>
         </div>
@@ -66,16 +65,15 @@
                 </div>
                 <div class="card-body">
                     <p><strong>Init. BE X:</strong> <span id="break-even-x-inicial">{{
-                            "%.2f"|format(hunt.estatisticas.break_even_x_inicial) }}</span>x</p>
-                    <p><strong>Init. BE €:</strong> €<span id="break-even-euro-inicial">{{
-                            "%.2f"|format(hunt.estatisticas.break_even_euro_inicial) }}</span></p>
-                    <p><strong>Open BE X:</strong> <span id="break-even-x">{{
-                            "%.2f"|format(hunt.estatisticas.break_even_x) }}</span>x</p>
-                    <p><strong>Open BE €:</strong> €<span id="break-even-euro">{{
-                            "%.2f"|format(hunt.estatisticas.break_even_euro) }}</span></p>
-                    <p><strong>AVG X:</strong> <span id="avg-x">{{ "%.2f"|format(hunt.estatisticas.avg_x) }}</span>x</p>
-                    <p><strong>AVG €:</strong> €<span id="avg-euro">{{ "%.2f"|format(hunt.estatisticas.avg_euro)
+                            hunt.estatisticas.break_even_x_inicial }}</span></p>
+                    <p><strong>Init. BE €:</strong> <span id="break-even-euro-inicial">{{
+                            hunt.estatisticas.break_even_euro_inicial }}</span></p>
+                    <p><strong>Open BE X:</strong> <span id="break-even-x">{{ hunt.estatisticas.break_even_x }}</span>
+                    </p>
+                    <p><strong>Open BE €:</strong> <span id="break-even-euro">{{ hunt.estatisticas.break_even_euro
                             }}</span></p>
+                    <p><strong>AVG X:</strong> <span id="avg-x">{{ hunt.estatisticas.avg_x }}</span></p>
+                    <p><strong>AVG €:</strong> <span id="avg-euro">{{ hunt.estatisticas.avg_euro }}</span></p>
                 </div>
             </div>
         </div>
@@ -89,15 +87,15 @@
                     <p><strong>Best X:</strong> <span id="best-slot-x">
                             {% if hunt.estatisticas.best_bonus_x %}
                             {{ hunt.estatisticas.best_bonus_x.slot.name }} - {{
-                            "%.2f"|format(hunt.estatisticas.best_bonus_x.multiplicador) }}x
+                            hunt.estatisticas.best_bonus_x.multiplicador }}
                             {% else %}
                             N/A
                             {% endif %}
                         </span></p>
                     <p><strong>Best €:</strong> <span id="best-slot-euro">
                             {% if hunt.estatisticas.best_bonus_euro %}
-                            {{ hunt.estatisticas.best_bonus_euro.slot.name }} - €{{
-                            "%.2f"|format(hunt.estatisticas.best_bonus_euro.payout) }}
+                            {{ hunt.estatisticas.best_bonus_euro.slot.name }} - {{
+                            hunt.estatisticas.best_bonus_euro.payout }}
                             {% else %}
                             N/A
                             {% endif %}
@@ -105,7 +103,7 @@
                     <p><strong>Worst X:</strong> <span id="worst-slot-x">
                             {% if hunt.estatisticas.worst_bonus_x %}
                             {{ hunt.estatisticas.worst_bonus_x.slot.name }} - {{
-                            "%.2f"|format(hunt.estatisticas.worst_bonus_x.multiplicador) }}x
+                            hunt.estatisticas.worst_bonus_x.multiplicador }}x
                             {% else %}
                             N/A
                             {% endif %}
@@ -113,8 +111,8 @@
                     <p><strong>Worst €:</strong> <span id="worst-slot-euro">
                             {% if hunt.estatisticas.worst_bonus_euro and hunt.estatisticas.worst_bonus_euro.payout is
                             not none %}
-                            {{ hunt.estatisticas.worst_bonus_euro.slot.name }} - €{{
-                            "%.2f"|format(hunt.estatisticas.worst_bonus_euro.payout) }}
+                            {{ hunt.estatisticas.worst_bonus_euro.slot.name }} - {{
+                            hunt.estatisticas.worst_bonus_euro.payout }}
                             {% else %}
                             N/A
                             {% endif %}
@@ -167,7 +165,6 @@
                 </tr>
             </thead>
             <tbody>
-            <tbody>
                 {% for bonus in hunt.bonuses %}
                 <tr data-bonus-id="{{ bonus.id }}" class="{{ 'active-bonus' if bonus.id == hunt.bonus_atual_id }}">
                     <td>{{ loop.index }}</td>
@@ -180,16 +177,17 @@
                             </div>
                         </div>
                     </td>
-                    <td>€{{ "%.2f"|format(bonus.aposta) }}</td>
+                    <td>{{ bonus.aposta }}</td>
                     <td class="payout-cell">
                         {% if bonus.id == hunt.bonus_atual_id %}
-                        <input type="number" step="0.01" name="payout" value="{{ " %.2f"|format(bonus.payout) if
-                            bonus.payout else '' }}" class="form-control payout-input" data-bonus-id="{{ bonus.id }}">
+                        <input type="number" step="0.01" name="payout"
+                            value="{{ bonus.payout if bonus.payout else '' }}" class="form-control payout-input"
+                            data-bonus-id="{{ bonus.id }}">
                         {% else %}
-                        {{ "%.2f"|format(bonus.payout) if bonus.payout else '' }}
+                        {{ bonus.payout if bonus.payout else '' }}
                         {% endif %}
                     </td>
-                    <td>{{ "%.2f"|format(bonus.multiplicador) + 'x' if bonus.payout else '' }}</td>
+                    <td>{{ bonus.multiplicador if bonus.payout else '' }}</td>
                     <td>{{ bonus.nota or '' }}</td>
                     <td>{{ bonus.padrinho or '' }}</td>
                     <td>
@@ -254,4 +252,8 @@
         </div>
     </div>
 </div>
+</div>
+<script id="hunt-data" type="application/json">
+    {{ hunt.to_dict() | tojson | safe }}
+</script>
 {% endblock %}
