@@ -129,7 +129,8 @@
         <form id="add-bonus-form" action="{{ url_for('bonus_hunts.add_bonus', id=hunt.id) }}" method="POST">
             <div class="form-row">
                 <div class="slot-search-container">
-                    <input type="text" id="slotSearch" class="form-control" placeholder="Search for a slot" autocomplete="off">
+                    <input type="text" id="slotSearch" class="form-control" placeholder="Search for a slot"
+                        autocomplete="off">
                     <input type="hidden" id="slotId" name="slot_id" required>
                     <div id="suggestions" class="list-group"></div>
                 </div>
@@ -171,16 +172,15 @@
                 <tr data-bonus-id="{{ bonus.id }}" class="{{ 'active-bonus' if bonus.id == hunt.bonus_atual_id }}">
                     <td>{{ loop.index }}</td>
                     <td>
-                        <div style="display: flex; align-items: center;">
-                            <img src="{{ url_for('static', filename=bonus.slot.image) }}" alt="{{ bonus.slot.name }}"
-                                style="width: 50px; height: 50px; margin-right: 10px;">
-                            <div>
-                                {{ bonus.slot.name }}<br>
-                                <small><i>{{ bonus.slot.provider }}</i></small>
+                        <div class="slot-info">
+                            <img src="{{ url_for('static', filename=bonus.slot.image) }}" alt="{{ bonus.slot.name }}">
+                            <div class="slot-text">
+                                <span class="slot-name">{{ bonus.slot.name }}</span>
+                                <small class="slot-provider">{{ bonus.slot.provider }}</small>
                             </div>
                         </div>
                     </td>
-                    <td>{{ "%.2f"|format(bonus.aposta) }}</td>
+                    <td>€{{ "%.2f"|format(bonus.aposta) }}</td>
                     <td class="payout-cell">
                         {% if bonus.id == hunt.bonus_atual_id %}
                         <input type="number" step="0.01" name="payout" value="{{ " %.2f"|format(bonus.payout) if
@@ -193,13 +193,15 @@
                     <td>{{ bonus.nota or '' }}</td>
                     <td>{{ bonus.padrinho or '' }}</td>
                     <td>
-                        <button class="btn btn-sm action-btn {{ 'btn-success' if bonus.id == hunt.bonus_atual_id else 'btn-outline-success' }} play-bonus-btn" data-bonus-id="{{ bonus.id }}">
+                        <button class="btn btn-sm action-btn btn-outline-success play-bonus-btn"
+                            data-bonus-id="{{ bonus.id }}">
                             <i class="fas fa-play"></i>
                         </button>
                         <button class="btn btn-sm action-btn btn-primary edit-bonus-btn" data-bonus-id="{{ bonus.id }}">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn btn-sm action-btn btn-danger delete-bonus-btn" data-bonus-id="{{ bonus.id }}">
+                        <button class="btn btn-sm action-btn btn-danger delete-bonus-btn"
+                            data-bonus-id="{{ bonus.id }}">
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>

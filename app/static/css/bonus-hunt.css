@@ -155,3 +155,125 @@
         height: auto;
     }
 }
+
+#bonus-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+#bonus-table th,
+#bonus-table td {
+    border-right: 1px solid #e0e0e0;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 8px;
+    vertical-align: middle;
+}
+
+#bonus-table th:last-child,
+#bonus-table td:last-child {
+    border-right: none;
+}
+
+#bonus-table tr:last-child td {
+    border-bottom: none;
+}
+
+#bonus-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    text-align: left;
+}
+
+/* Definindo larguras fixas para as colunas */
+#bonus-table th:nth-child(1),
+#bonus-table td:nth-child(1) {
+    width: 5%;
+}
+
+#bonus-table th:nth-child(2),
+#bonus-table td:nth-child(2) {
+    width: 32%;
+}
+
+#bonus-table th:nth-child(3),
+#bonus-table td:nth-child(3) {
+    width: 7;
+}
+
+#bonus-table th:nth-child(4),
+#bonus-table td:nth-child(4) {
+    width: 10%;
+}
+
+#bonus-table th:nth-child(5),
+#bonus-table td:nth-child(5) {
+    width: 10%;
+}
+
+#bonus-table th:nth-child(6),
+#bonus-table td:nth-child(6) {
+    width: 12%;
+}
+
+#bonus-table th:nth-child(7),
+#bonus-table td:nth-child(7) {
+    width: 12%;
+}
+
+#bonus-table th:nth-child(8),
+#bonus-table td:nth-child(8) {
+    width: 10%;
+}
+
+/* Para garantir que o conteúdo não ultrapasse o tamanho da célula */
+#bonus-table td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Estilos para a imagem e texto na coluna do slot */
+#bonus-table .slot-info {
+    display: flex;
+    align-items: center;
+}
+
+#bonus-table .slot-info img {
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
+    object-fit: cover;
+}
+
+#bonus-table .slot-info .slot-text {
+    display: flex;
+    flex-direction: column;
+}
+
+#bonus-table .slot-info .slot-name {
+    font-weight: bold;
+}
+
+#bonus-table .slot-info .slot-provider {
+    font-size: 0.8em;
+    color: #666;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    #bonus-table {
+        font-size: 0.9em;
+    }
+
+    #bonus-table th,
+    #bonus-table td {
+        padding: 5px;
+    }
+
+    #bonus-table .slot-info img {
+        width: 30px;
+        height: 30px;
+        margin-right: 5px;
+    }
+}
