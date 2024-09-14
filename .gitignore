@@ -1,3 +1,19 @@
+# Ignore todas as imagens
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.svg
+*.webp
+
+# Ignore o diretório de imagens estáticas
+static/images/
+
+# Se você quiser ignorar apenas um diretório específico de imagens, use:
+# /path/to/image/directory/
+
+# Mantenha as outras regras que você já tinha
 venv/
 *.pyc
 __pycache__/
@@ -9,4 +25,3 @@ dist/
 build/
 *.egg-info/
 .env
-app/static/images/slots
