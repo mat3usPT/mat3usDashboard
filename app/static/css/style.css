@@ -1,4 +1,4 @@
-/* Geral */
+/* General styles */
 body {
     font-family: Arial, sans-serif;
     margin: 0;
@@ -7,6 +7,11 @@ body {
 
 .container-fluid {
     margin-top: 20px;
+}
+
+/* Button styles */
+.btn {
+    border-radius: 0.25rem;
 }
 
 .btn-primary {
@@ -21,20 +26,26 @@ body {
     color: white;
 }
 
-table.table {
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Table styles */
+.table {
     width: 100%;
     margin-bottom: 1rem;
     color: #212529;
     border-collapse: collapse;
 }
 
-table.table th, table.table td {
+.table th, .table td {
     padding: 0.75rem;
     vertical-align: top;
     border-top: 1px solid #dee2e6;
 }
 
-table.table thead th {
+.table thead th {
     vertical-align: bottom;
     border-bottom: 2px solid #dee2e6;
 }
@@ -43,6 +54,7 @@ table.table thead th {
     background-color: rgba(0,0,0,.05);
 }
 
+/* Card styles */
 .card {
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -58,61 +70,129 @@ table.table thead th {
     padding: 20px;
 }
 
-/* Search bar */
+/* Search bar and suggestions styles */
 .search-container {
     position: relative;
     width: 100%;
 }
 
 #slotSearch {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
-.suggestions-box {
+#suggestions {
     position: absolute;
     top: 100%;
     left: 0;
     right: 0;
+    z-index: 1000;
+    background-color: white;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
     max-height: 300px;
     overflow-y: auto;
-    background-color: white;
-    border: 1px solid #ccc;
-    z-index: 1000;
-    border-radius: 4px;
+    display: none;
 }
 
-.suggestions-box .suggestion-item {
+#suggestions .list-group-item {
+    cursor: pointer;
+}
+
+#suggestions .list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+.suggestion-item {
     display: flex;
     align-items: center;
     padding: 10px;
     border-bottom: 1px solid #f1f1f1;
-    cursor: pointer;
 }
 
-.suggestions-box .suggestion-item:hover {
-    background-color: #f9f9f9;
-}
-
-.suggestions-box img {
+.suggestion-item img {
     width: 40px;
     height: 40px;
     margin-right: 10px;
     object-fit: cover;
 }
 
-.suggestions-box .slot-name {
+.suggestion-item .slot-name {
     font-size: 16px;
 }
 
+/* Modal styles */
+.modal-content {
+    border-radius: 0.3rem;
+}
 
-.clear-btn {
+.modal-header, .modal-footer {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+/* Pagination styles */
+.pagination {
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+/* Slot image styles */
+.slot-img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+/* Action button styles */
+.action-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 5px;
+}
+
+.action-btn i {
+    margin: 0;
+}
+
+#providerSuggestions {
+    position: absolute;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1050;
+    background-color: white;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    display: none;
+}
+
+#providerSuggestions .list-group-item {
     cursor: pointer;
 }
-.input-group-append .btn-outline-secondary {
-    border-color: #ced4da;
+
+#providerSuggestions .list-group-item:hover {
+    background-color: #f8f9fa;
 }
 
+/* Responsive styles */
+@media (max-width: 768px) {
+    .table-responsive {
+        overflow-x: auto;
+    }
 
+    .action-btn {
+        width: 40px;
+        height: 40px;
+    }
+}

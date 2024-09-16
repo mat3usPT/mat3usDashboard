@@ -127,10 +127,10 @@
         <form id="add-bonus-form" action="{{ url_for('bonus_hunts.add_bonus', id=hunt.id) }}" method="POST">
             <div class="form-row">
                 <div class="slot-search-container">
-                    <input type="text" id="slotSearch" class="form-control" placeholder="Search for a slot"
-                        autocomplete="off">
-                    <input type="hidden" id="slotId" name="slot_id" required>
+                    <input type="text" id="slotSearch" class="form-control" placeholder="Search for a slot...">
+                    <button type="button" class="btn btn-outline-secondary" id="addNewSlotBtn">+</button>
                     <div id="suggestions" class="list-group"></div>
+                    <input type="hidden" id="slotId" name="slot_id">
                 </div>
                 <div class="form-group">
                     <input type="number" step="0.01" name="aposta" class="form-control" placeholder="Bet" required>
@@ -209,7 +209,22 @@
         </table>
     </div>
 </div>
-
+<!-- Modal para criar nova slot -->
+<div class="modal fade" id="createSlotModal" tabindex="-1" role="dialog" aria-labelledby="createSlotModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createSlotModalLabel">Create New Slot</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- O conteúdo será carregado dinamicamente aqui -->
+            </div>
+        </div>
+    </div>
+</div>
 <div id="editBonusModal" class="modal fade" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -254,6 +269,8 @@
 </div>
 </div>
 <script id="hunt-data" type="application/json">
+    
     {{ hunt.to_dict() | tojson | safe }}
+    
 </script>
 {% endblock %}

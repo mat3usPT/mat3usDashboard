@@ -3,10 +3,6 @@ document.addEventListener('DOMContentLoaded', function () {
     setupCreateHuntForm();
     setupHuntActions();
     setupEditHuntButtons();
-    setupSlotSearch();
-    setupBonusActions();
-    setupSaveBonusEdit();
-    setupAddBonusForm();
 
     // Verifica se estamos na página de visualização de um Bonus Hunt individual
     if (document.querySelector('.bonus-hunt-view')) {
@@ -14,10 +10,12 @@ document.addEventListener('DOMContentLoaded', function () {
                const huntData = JSON.parse(document.getElementById('hunt-data').textContent);
                updateStatistics(huntData);
                updateBonusTable(huntData);
-    //    setupSlotSearch();
-    //    setupBonusActions();
-    //    setupSaveBonusEdit();
-    //    setupAddBonusForm();
+               setupBonusActions();
+               setupSaveBonusEdit();
+               setupAddBonusForm();
+               setupAddNewSlotButton();
+               setupSlotSearch();
+               initProviderSuggestions();
     }
 });
 
@@ -177,7 +175,6 @@ function setupEditHuntButtons() {
 //////////////////////////////////////////////////////
 //////////////////////////////////////////////////////
 
-
 function setupBonusActions() {
     const bonusTable = document.getElementById('bonus-table');
     if (bonusTable) {
@@ -335,7 +332,6 @@ function updatePayout(bonusId, payout) {
     });
 }
 
-// Função para atualizar a tabela de bônus
 function updateBonusTable(hunt) {
     const rows = document.querySelectorAll('#bonus-table tbody tr');
     rows.forEach(row => {
@@ -352,12 +348,13 @@ function updateBonusTable(hunt) {
 
             const payoutCell = row.querySelector('.payout-cell');
             if (isActive) {
-                payoutCell.innerHTML = `<input type="number" step="0.01" name="payout" value="${bonus.payout !== null ? formatNumber(bonus.payout) : ''}" class="form-control payout-input" data-bonus-id="${bonus.id}">`;
+                payoutCell.innerHTML = `<input type="number" step="0.01" name="payout" value="${bonus.payout !== null ? bonus.payout : ''}" class="form-control payout-input" data-bonus-id="${bonus.id}">`;
                 const payoutInput = payoutCell.querySelector('.payout-input');
                 payoutInput.addEventListener('keydown', handlePayoutInput);
             } else {
                 payoutCell.textContent = bonus.payout !== null ? formatCurrency(bonus.payout) : '';
             }
+            payoutCell.setAttribute('data-remaining-balance', bonus.saldo_restante || '');
 
             row.querySelector('td:nth-child(5)').textContent = bonus.payout !== null ? formatMultiplier(bonus.multiplicador) : '';
             row.querySelector('td:nth-child(6)').textContent = bonus.nota || '';
@@ -377,8 +374,24 @@ function activateNextBonus(hunt) {
 
 function setupAddBonusForm() {
     const addBonusForm = document.getElementById('add-bonus-form');
+
     if (addBonusForm) {
         addBonusForm.addEventListener('submit', handleAddBonus);
+
+        // Adicionar evento de "Escape" para cada campo do formulário
+        const inputs = addBonusForm.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    resetInputField(input);
+                    input.blur(); // Abandona o campo de input
+                }
+            });
+        });
+    }
+
+    function resetInputField(input) {
+        input.value = ''; // Reseta o valor do campo
     }
 }
 
@@ -405,8 +418,8 @@ function handleAddBonus(e) {
         .then(({ data, isJson }) => {
             if (isJson) {
                 if (data.success) {
-                    updateBonusTable(data.hunt);
                     appendNewBonusRow(data.newBonus);
+                    updateBonusTable(data.hunt);
                     form.reset();
                 } else {
                     throw new Error(data.error || 'Unknown error occurred');
@@ -432,16 +445,36 @@ function handleEditBonus(e) {
     const row = document.querySelector(`tr[data-bonus-id="${bonusId}"]`);
 
     document.getElementById('edit-bonus-id').value = bonusId;
-    document.getElementById('edit-bet').value = row.querySelector('td:nth-child(3)').textContent.replace('€', '').trim();
-    document.getElementById('edit-payout').value = row.querySelector('td:nth-child(4)').textContent.replace('€', '').trim();
-    document.getElementById('edit-remaining-balance').value = row.querySelector('.payout-cell').getAttribute('data-remaining-balance') || '';
-    document.getElementById('edit-note').value = row.querySelector('td:nth-child(6)').textContent;
-    document.getElementById('edit-padrinho').value = row.querySelector('td:nth-child(7)').textContent;
+
+    // Função auxiliar para extrair o valor numérico de uma string formatada
+    const extractNumber = (str) => {
+        const match = str.replace(',', '.').match(/[\d.]+/);
+        return match ? parseFloat(match[0]) : '';
+    };
+
+    // Obter e definir o valor da aposta
+    const betValue = extractNumber(row.querySelector('td:nth-child(3)').textContent);
+    document.getElementById('edit-bet').value = betValue;
+
+    // Obter e definir o valor do payout
+    const payoutCell = row.querySelector('.payout-cell');
+    const payoutValue = payoutCell.querySelector('input') ? 
+        payoutCell.querySelector('input').value :
+        extractNumber(payoutCell.textContent);
+    document.getElementById('edit-payout').value = payoutValue;
+
+    // Obter e definir o saldo restante
+    const remainingBalance = payoutCell.getAttribute('data-remaining-balance');
+    document.getElementById('edit-remaining-balance').value = remainingBalance || '';
+
+    // Obter e definir a nota
+    document.getElementById('edit-note').value = row.querySelector('td:nth-child(6)').textContent.trim();
+
+    // Obter e definir o padrinho
+    document.getElementById('edit-padrinho').value = row.querySelector('td:nth-child(7)').textContent.trim();
 
     $('#editBonusModal').modal('show');
 }
-
-
 
 // Função que configura os botões de delete
 function setupDeleteBonusButtons() {
@@ -577,14 +610,19 @@ function appendNewBonusRow(bonus) {
     if (bonusTable) {
         const newRow = document.createElement('tr');
         newRow.dataset.bonusId = bonus.id;
+        
+        // Define a classe da linha para a formatação
+        const rowIndex = bonusTable.children.length + 1;
+        newRow.className = rowIndex % 2 === 0 ? '' : 'active-bonus';
+
         newRow.innerHTML = `
-            <td>${bonusTable.children.length + 1}</td>
+            <td>${rowIndex}</td>
             <td>
-                <div style="display: flex; align-items: center;">
-                    <img src="${bonus.slot.image}" alt="${bonus.slot.name}" style="width: 50px; height: 50px; margin-right: 10px;" />
-                    <div>
-                        ${bonus.slot.name}<br>
-                        <small><i>${bonus.slot.provider}</i></small>
+                <div class="slot-info">
+                    <img src="${bonus.slot.image}" alt="${bonus.slot.name}" class="slot-img" />
+                    <div class="slot-text">
+                        <span class="slot-name">${bonus.slot.name}</span>
+                        <small class="slot-provider"><i>${bonus.slot.provider}</i></small>
                     </div>
                 </div>
             </td>
@@ -597,7 +635,7 @@ function appendNewBonusRow(bonus) {
                 <button class="btn btn-sm action-btn btn-outline-success play-bonus-btn" data-bonus-id="${bonus.id}">
                     <i class="fas fa-play"></i>
                 </button>
-                <button class="btn btn-sm action-btn btn-secondary edit-bonus-btn" data-bonus-id="${bonus.id}">
+                <button class="btn btn-sm action-btn btn-primary edit-bonus-btn" data-bonus-id="${bonus.id}">
                     <i class="fas fa-edit"></i>
                 </button>
                 <button class="btn btn-sm action-btn btn-danger delete-bonus-btn" data-bonus-id="${bonus.id}">
@@ -605,21 +643,21 @@ function appendNewBonusRow(bonus) {
                 </button>
             </td>
         `;
+        
+        // Adiciona a nova linha ao final da tabela
         bonusTable.appendChild(newRow);
 
-        // Reordenar as linhas
-        const rows = Array.from(bonusTable.querySelectorAll('tr'));
-        rows.sort((a, b) => {
-            return parseInt(a.children[0].textContent) - parseInt(b.children[0].textContent);
-        });
-        
-        // Limpar e readicionar as linhas na ordem correta
-        bonusTable.innerHTML = '';
-        rows.forEach((row, index) => {
-            row.classList.toggle('table-striped', index % 2 === 0);
-            bonusTable.appendChild(row);
-        });
+        // Atualiza as classes de estilo para todas as linhas
+        updateTableRowStyles();
     }
+}
+
+function updateTableRowStyles() {
+    const rows = document.querySelectorAll('#bonus-table tbody tr');
+    rows.forEach((row, index) => {
+        // Alterna a classe 'active-bonus' para formatação de linha
+        row.classList.toggle('active-bonus', index % 2 !== 0);
+    });
 }
 
 function removeBonusRow(bonusId) {
@@ -627,6 +665,37 @@ function removeBonusRow(bonusId) {
     if (row) {
         row.remove();
     }
+}
+
+function createSuggestionItem(slot) {
+    const suggestionItem = document.createElement('a');
+    suggestionItem.href = '#';
+    suggestionItem.className = 'list-group-item list-group-item-action';
+    suggestionItem.innerHTML = `
+        <div class="d-flex align-items-center">
+            <img src="${slot.image || '/static/images/slots/generic.jpg'}" alt="${slot.name}" class="mr-3" style="width: 50px; height: 50px; object-fit: cover;">
+            <div>
+                <div class="font-weight-bold">${slot.name}</div>
+                <small>${slot.provider}</small>
+            </div>
+        </div>
+    `;
+    suggestionItem.addEventListener('click', function(e) {
+        e.preventDefault();
+        const slotSearch = document.getElementById('slotSearch');
+        const slotIdInput = document.getElementById('slotId');
+        const suggestionsBox = document.getElementById('suggestions');
+
+        if (slotSearch && slotIdInput) {
+            slotSearch.value = slot.name;
+            slotIdInput.value = slot.id;
+        }
+
+        if (suggestionsBox) {
+            suggestionsBox.classList.remove('show');
+        }
+    });
+    return suggestionItem;
 }
 
 function setupSlotSearch() {
@@ -669,10 +738,15 @@ function setupSlotSearch() {
                                 slotSearch.value = slot.name;
                                 slotIdInput.value = slot.id;
                                 suggestionsBox.innerHTML = '';
+                                suggestionsBox.classList.remove('show'); // Hide the suggestions box
                             });
 
                             suggestionsBox.appendChild(suggestionItem);
                         });
+
+                        if (suggestionsBox.innerHTML.trim() !== '') {
+                            suggestionsBox.classList.add('show'); // Show the suggestions box
+                        }
 
                         new LazyLoad({
                             elements_selector: ".lazyload"
@@ -681,18 +755,123 @@ function setupSlotSearch() {
                     .catch(error => {
                         console.error('Error fetching slot suggestions:', error);
                         suggestionsBox.innerHTML = '<div class="list-group-item">Error fetching suggestions. Please try again.</div>';
+                        suggestionsBox.classList.add('show'); // Show the error message
                     });
+            } else {
+                suggestionsBox.classList.remove('show'); // Hide the suggestions box
             }
         });
+
+        // Add event listener for Escape key
+        slotSearch.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                resetSlotSearch();
+                slotSearch.blur(); // Remove focus from the input
+            }
+        });
+
+        // Add event listener for clicking outside the search area
+        document.addEventListener('click', function (e) {
+            if (!slotSearch.contains(e.target) && !suggestionsBox.contains(e.target)) {
+                suggestionsBox.classList.remove('show');
+            }
+        });
+
+        // Add event listener for the new slot button
+        const addNewSlotBtn = document.getElementById('addNewSlotBtn');
+        if (addNewSlotBtn) {
+            addNewSlotBtn.addEventListener('click', function() {
+                $('#createSlotModal').modal('show');
+            });
+        }
     }
 
-    document.addEventListener('click', function (e) {
-        if (suggestionsBox && !suggestionsBox.contains(e.target) && e.target !== slotSearch) {
-            suggestionsBox.innerHTML = '';
-        }
-    });
+    function resetSlotSearch() {
+        slotSearch.value = ''; // Reset the search input value
+        slotIdInput.value = ''; // Reset the hidden input value
+        suggestionsBox.innerHTML = ''; // Clear the suggestions
+        suggestionsBox.classList.remove('show'); // Hide the suggestions box
+    }
 }
 
+function setupAddNewSlotButton() {
+    const addNewSlotBtn = document.getElementById('addNewSlotBtn');
+    if (addNewSlotBtn) {
+        addNewSlotBtn.addEventListener('click', function() {
+            fetch('/slots/create_form')
+                .then(response => response.text())
+                .then(html => {
+                    const modalBody = document.querySelector('#createSlotModal .modal-body');
+                    modalBody.innerHTML = html;
+                    $('#createSlotModal').modal('show');
+                    setupSlotForm();
+                })
+                .catch(error => {
+                    console.error('Error loading slot creation form:', error);
+                    alert('Error loading slot creation form. Please try again.');
+                });
+        });
+    }
+}
+
+function setupSlotForm() {
+    const slotForm = document.getElementById('slotForm');
+    if (slotForm) {
+        slotForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const url = this.dataset.id ? `/slots/${this.dataset.id}` : '/slots/';
+
+            fetch(url, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    $('#createSlotModal').modal('hide');
+                    updateSlotSearch(data.slot);
+                    alert(this.dataset.id ? 'Slot updated successfully!' : 'Slot created successfully!');
+                } else {
+                    throw new Error(data.error || 'Unknown error occurred');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(`Error ${this.dataset.id ? 'updating' : 'creating'} slot: ${error.message}`);
+            });
+        });
+    }
+}
+function updateSlotSearch(newSlot, clearExisting = false, showSuggestions = true) {
+    const slotSearch = document.getElementById('slotSearch');
+    const slotIdInput = document.getElementById('slotId');
+    const suggestionsBox = document.getElementById('suggestions');
+
+    if (slotSearch && slotIdInput) {
+        slotSearch.value = newSlot.name;
+        slotIdInput.value = newSlot.id;
+    }
+
+    if (suggestionsBox) {
+        if (clearExisting) {
+            suggestionsBox.innerHTML = '';
+        }
+
+        const suggestionItem = createSuggestionItem(newSlot);
+        
+        if (clearExisting) {
+            suggestionsBox.appendChild(suggestionItem);
+        } else {
+            suggestionsBox.insertBefore(suggestionItem, suggestionsBox.firstChild);
+        }
+
+        suggestionsBox.classList.toggle('show', showSuggestions);
+    }
+}
 // Função para lidar com erros
 function handleError(message) {
     console.error(message);

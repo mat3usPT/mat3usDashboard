@@ -6,26 +6,27 @@
     <div class="form-group">
         <label for="provider">Provider</label>
         <input type="text" class="form-control" id="provider" name="provider" value="{{ slot.provider if slot else '' }}" required>
+        <div id="providerSuggestions" class="list-group"></div>
     </div>
     <div class="form-group">
         <label for="rtp">RTP (%)</label>
-        <input type="number" class="form-control" id="rtp" name="rtp" step="0.01" min="0" max="100" value="{{ (slot.rtp * 100)|round(2) if slot and slot.rtp else '' }}">
+        <input type="number" step="0.01" class="form-control" id="rtp" name="rtp" value="{{ (slot.rtp * 100)|round(2) if slot and slot.rtp is not none else '' }}">
     </div>
     <div class="form-group">
         <label for="volatility">Volatility (1-10)</label>
-        <input type="number" class="form-control" id="volatility" name="volatility" min="1" max="10" value="{{ slot.volatility if slot else '' }}">
+        <input type="number" class="form-control" id="volatility" name="volatility" min="1" max="10" value="{{ slot.volatility if slot and slot.volatility is not none else '' }}">
     </div>
     <div class="form-group">
         <label for="potential">Potential</label>
-        <input type="number" class="form-control" id="potential" name="potential" step="0.01" min="0" value="{{ slot.potential if slot else '' }}">
+        <input type="number" step="0.01" class="form-control" id="potential" name="potential" value="{{ slot.potential if slot and slot.potential is not none else '' }}">
     </div>
     <div class="form-group">
         <label for="best_x">Best X</label>
-        <input type="number" class="form-control" id="best_x" name="best_x" step="0.01" min="0" value="{{ slot.best_x if slot else '' }}">
+        <input type="number" class="form-control" id="best_x" name="best_x" step="0.01" min="0" value="{{ slot.best_x if slot and slot.best_x is not none else '' }}">
     </div>
     <div class="form-group">
         <label for="best_euro">Best € (in cents)</label>
-        <input type="number" class="form-control" id="best_euro" name="best_euro" step="1" min="0" value="{{ slot.best_euro if slot else '' }}">
+        <input type="number" class="form-control" id="best_euro" name="best_euro" step="1" min="0" value="{{ slot.best_euro if slot and slot.best_x is not none else '' }}">
     </div>
     <div class="form-group">
         <label for="image">Image</label>

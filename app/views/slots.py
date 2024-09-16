@@ -29,7 +29,9 @@ def download_image_from_url(url, filename):
         return False
 
 def handle_image(slot, form):
-    if 'image' in request.files and request.files['image']:
+    if form.get('use_default_image'):
+        slot.image = 'images/slots/generic.jpg'
+    elif 'image' in request.files and request.files['image']:
         file = request.files['image']
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
@@ -48,6 +50,8 @@ def handle_image(slot, form):
                 flash('Unable to download image from the provided link.', 'danger')
         else:
             flash('Unsupported image format.', 'danger')
+    elif not slot.image:  # If no image is provided and slot doesn't already have an image
+        slot.image = 'images/slots/generic.jpg'
 
 @slots.route('/suggestions')
 def suggestions():
@@ -86,11 +90,11 @@ def list_slots():
     
     query = Slot.query
     
-    if search_name:
-        query = query.filter(Slot.name.ilike(f'%{search_name}%'))
-    
-    if search_provider:
-        query = query.filter(Slot.provider.ilike(f'%{search_provider}%'))
+    if search_name or search_provider:
+        query = query.filter(
+            (Slot.name.ilike(f'%{search_name}%')) |
+            (Slot.provider.ilike(f'%{search_provider}%'))
+        )
     
     if order == 'asc':
         query = query.order_by(getattr(Slot, sort).asc())
@@ -102,7 +106,7 @@ def list_slots():
 
 @slots.route('/create_form')
 def create_slot_form():
-    return render_template('slots/create_edit_slot.html')
+    return render_template('slots/create_edit_slot.html', slot=None)
 
 @slots.route('/', methods=['POST'])
 def create_slot():
@@ -119,7 +123,16 @@ def create_slot():
         handle_image(slot, request.form)
         db.session.add(slot)
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Slot created successfully!'})
+        return jsonify({
+            'success': True, 
+            'message': 'Slot created successfully!',
+            'slot': {
+                'id': slot.id,
+                'name': slot.name,
+                'provider': slot.provider,
+                'image': url_for('static', filename=slot.image, _external=True) if slot.image else None
+            }
+        })
     except Exception as e:
         db.session.rollback()
         print(f"Error creating slot: {str(e)}")
@@ -164,6 +177,7 @@ def delete_slot(id):
 @slots.route('/search')
 def search_slots():
     query = request.args.get('q', '')
+    print(f"Received search query: {query}")  # Debug log
     slots = Slot.query.filter(func.lower(Slot.name).like(f"%{query.lower()}%")).all()
     
     # Remove duplicates and limit to 10 results
@@ -181,4 +195,12 @@ def search_slots():
         'image': url_for('static', filename=slot.image.lstrip('/'), _external=True) if slot.image else None
     } for slot in unique_slots.values()]
     
+    print(f"Returning {len(result)} results")  # Debug log
     return jsonify(result)
+
+@slots.route('/providers')
+def get_providers():
+    query = request.args.get('q', '').lower()
+    providers = Slot.query.with_entities(Slot.provider).distinct().all()
+    providers = [p[0] for p in providers if p[0] and query in p[0].lower()]
+    return jsonify(providers)

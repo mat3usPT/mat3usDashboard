@@ -1,3 +1,4 @@
+/* Action buttons */
 .action-btn {
     width: 30px;
     height: 30px;
@@ -11,14 +12,17 @@
     margin: 0;
 }
 
+/* Payout input */
 .payout-input {
     width: 110px;
 }
 
+/* Active bonus styling */
 .active-bonus {
     background-color: #d4edda !important;
 }
 
+/* Play bonus button styles */
 .play-bonus-btn {
     color: #28a745;
 }
@@ -35,6 +39,7 @@
     color: white;
 }
 
+/* Table stripes */
 .table-striped tbody tr:nth-of-type(odd) {
     background-color: rgba(0, 0, 0, 0.05);
 }
@@ -43,6 +48,7 @@
     background-color: #fff;
 }
 
+/* Card styles */
 .card {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
@@ -51,19 +57,7 @@
     font-weight: bold;
 }
 
-#bonus-table {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-#bonus-table th {
-    background-color: #f8f9fa;
-    font-weight: bold;
-}
-
-#bonus-table td {
-    vertical-align: middle;
-}
-
+/* Add bonus form styles */
 #add-bonus-form {
     background-color: #f8f9fa;
     padding: 1rem;
@@ -74,13 +68,36 @@
 #add-bonus-form .form-row {
     display: flex;
     flex-wrap: nowrap;
-    align-items: flex-start;
+    align-items: stretch;
 }
 
 .slot-search-container {
     position: relative;
     flex-grow: 1;
     margin-right: 10px;
+    display: flex;
+    align-items: stretch;
+}
+
+#slotSearch {
+    flex-grow: 1;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+#addNewSlotBtn {
+    border-color: #ced4da;
+    background-color: white;
+    border-left: none;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    padding: 0.375rem 0.75rem;
+    line-height: 1.5;
+    height: 95%;
+}
+
+#addNewSlotBtn:hover {
+    background-color: #e9ecef;
 }
 
 #add-bonus-form .form-group {
@@ -90,12 +107,19 @@
 
 #add-bonus-form input[name="aposta"],
 #add-bonus-form input[name="saldo_restante"] {
-    width: 95px;
+    width: 100px;
 }
 
 #add-bonus-form input[name="nota"],
 #add-bonus-form input[name="padrinho"] {
     width: 120px;
+}
+
+#add-bonus-form input[name="aposta"],
+#add-bonus-form input[name="saldo_restante"],
+#add-bonus-form input[name="nota"],
+#add-bonus-form input[name="padrinho"] {
+    height: calc(1.5em + 0.75rem + 2px);
 }
 
 #add-bonus-form button[type="submit"] {
@@ -107,7 +131,9 @@
     justify-content: center;
 }
 
+/* Suggestions box */
 #suggestions {
+    display: none;
     position: absolute;
     top: 100%;
     left: 0;
@@ -116,9 +142,13 @@
     background-color: white;
     border: 1px solid #ced4da;
     border-radius: 0.25rem;
-    max-height: 200px;
+    max-height: 600px;
     overflow-y: auto;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+#suggestions.show {
+    display: block;
 }
 
 .suggestion-item {
@@ -130,36 +160,12 @@
     background-color: #f8f9fa;
 }
 
-/* Responsividade */
-@media (max-width: 768px) {
-    #add-bonus-form .form-row {
-        flex-wrap: wrap;
-    }
-
-    .slot-search-container,
-    #add-bonus-form .form-group,
-    #add-bonus-form button[type="submit"] {
-        width: 100%;
-        margin-right: 0;
-        margin-bottom: 10px;
-    }
-
-    #add-bonus-form input[name="aposta"],
-    #add-bonus-form input[name="saldo_restante"],
-    #add-bonus-form input[name="nota"],
-    #add-bonus-form input[name="padrinho"] {
-        width: 100%;
-    }
-
-    #add-bonus-form button[type="submit"] {
-        height: auto;
-    }
-}
-
+/* Bonus table styles */
 #bonus-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 #bonus-table th,
@@ -185,7 +191,7 @@
     text-align: left;
 }
 
-/* Definindo larguras fixas para as colunas */
+/* Bonus table column widths */
 #bonus-table th:nth-child(1),
 #bonus-table td:nth-child(1) {
     width: 5%;
@@ -198,7 +204,7 @@
 
 #bonus-table th:nth-child(3),
 #bonus-table td:nth-child(3) {
-    width: 7;
+    width: 7%;
 }
 
 #bonus-table th:nth-child(4),
@@ -226,14 +232,13 @@
     width: 10%;
 }
 
-/* Para garantir que o conteúdo não ultrapasse o tamanho da célula */
 #bonus-table td {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* Estilos para a imagem e texto na coluna do slot */
+/* Slot info styles in bonus table */
 #bonus-table .slot-info {
     display: flex;
     align-items: center;
@@ -260,8 +265,31 @@
     color: #666;
 }
 
-/* Responsividade */
+/* Responsive styles */
 @media (max-width: 768px) {
+    #add-bonus-form .form-row {
+        flex-wrap: wrap;
+    }
+
+    .slot-search-container,
+    #add-bonus-form .form-group,
+    #add-bonus-form button[type="submit"] {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+
+    #add-bonus-form input[name="aposta"],
+    #add-bonus-form input[name="saldo_restante"],
+    #add-bonus-form input[name="nota"],
+    #add-bonus-form input[name="padrinho"] {
+        width: 100%;
+    }
+
+    #add-bonus-form button[type="submit"] {
+        height: auto;
+    }
+
     #bonus-table {
         font-size: 0.9em;
     }
@@ -276,4 +304,24 @@
         height: 30px;
         margin-right: 5px;
     }
+}
+
+#providerSuggestions {
+    position: absolute;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1050;
+    background-color: white;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    display: none;
+}
+
+#providerSuggestions .list-group-item {
+    cursor: pointer;
+}
+
+#providerSuggestions .list-group-item:hover {
+    background-color: #f8f9fa;
 }

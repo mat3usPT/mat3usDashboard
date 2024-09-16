@@ -112,7 +112,7 @@ def activate_hunt(id):
         except Exception as e:
             db.session.rollback()
             flash(f'Error activating Bonus Hunt: {str(e)}', 'error')
-        return redirect(url_for('bonus_hunts.list_hunts'))
+        return redirect(url_for('bonus_hunts.view_hunt', id=id))
 
 @bonus_hunts.route('/<int:id>/reset', methods=['POST'])
 def reset_hunt(id):
