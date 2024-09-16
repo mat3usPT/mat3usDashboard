@@ -10,3 +10,6 @@ dist/
 build/
 *.egg-info/
 .env
+_backup/
+_inspiration/
+app/static/images/slots/
