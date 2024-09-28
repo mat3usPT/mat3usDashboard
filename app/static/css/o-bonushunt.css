@@ -1,0 +1,280 @@
+:root {
+    --green: #00ff8b;
+    --blue: #020b22;
+    --white: #ffffff;
+    --gold: #ffd700;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Saira Semi Condensed', sans-serif;
+    text-transform: uppercase;
+    background-color: transparent;
+}
+
+.bonus-hunt-overlay {
+    width: 1920px;
+    height: 120px;
+    background-color: rgba(2, 11, 34, 0.8);
+    display: flex;
+    overflow: hidden;
+    position: relative;
+}
+
+.hunt-name {
+    position: absolute;
+    top: -30px;
+    left: 10px;
+    background-color: var(--green);
+    border-radius: 10px 10px 0 0;
+    padding: 5px 15px;
+    z-index: 10;
+}
+
+.hunt-name h1 {
+    color: var(--blue);
+    font-weight: 700;
+    font-size: 18px;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hunt-info {
+    width: 250px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.hunt-stats {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    padding: 5px 10px;
+}
+
+.stat-item {
+    width: 48%;
+    margin-bottom: 2px;
+}
+
+.stat-label {
+    color: var(--green);
+    font-size: 12px;
+    display: block;
+    font-weight: 300;
+    line-height: 1.2;
+}
+
+.stat-value {
+    color: var(--white);
+    font-weight: 700;
+    font-size: 14px;
+    display: block;
+    line-height: 1.2;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: var(--blue);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 3px;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--green);
+    width: 0%;
+    transition: width 0.5s ease-in-out;
+}
+
+.vertical-divider {
+    width: 1px;
+    background-color: rgba(255, 255, 255, 0.2);
+    margin: 10px 0;
+}
+
+.slots-container {
+    flex-grow: 1;
+    display: flex;
+    overflow: hidden;
+    padding: 0 10px;
+    position: relative;
+}
+
+.slots-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--green);
+}
+
+.bonus-cards-container {
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden;
+    transition: transform 0.5s ease;
+}
+
+.slot-card {
+    width: 180px;
+    height: 100px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 5px;
+    font-weight: 400;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.slot-header {
+    background-color: var(--blue);
+    padding: 3px 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 2;
+    position: relative;
+}
+
+.slot-name {
+    color: var(--green);
+    font-weight: 700;
+    font-size: 12px;
+}
+
+.slot-id {
+    color: var(--white);
+    font-size: 12px;
+    font-weight: 300;
+}
+
+.slot-image-container {
+    width: 75px;
+    height: 75px;
+    position: absolute;
+    left: 0;
+    top: 25px;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.slot-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.slot-background {
+    position: absolute;
+    top: 25px;
+    left: 75px;
+    right: 0;
+    bottom: 0;
+    background-size: cover;
+    background-position: center;
+    filter: blur(20px) brightness(0.85);
+    z-index: 0;
+}
+
+.slot-content {
+    position: relative;
+    z-index: 1;
+    height: 75px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+    padding-right: 10px;
+    margin-left: 75px;
+}
+
+.slot-bet, .slot-multiplier, .slot-win {
+    font-size: 12px;
+    color: var(--white);
+}
+
+.slot-multiplier {
+    color: var(--green);
+    font-weight: 700;
+}
+
+.slot-win {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.slot-note, .slot-padrinho {
+    position: absolute;
+    bottom: 3px;
+    font-size: 9px;
+    padding: 1px 3px;
+    border-radius: 2px;
+    z-index: 2;
+    font-weight: 300;
+}
+
+.slot-note {
+    right: 3px;
+    background-color: var(--blue);
+    color: var(--green);
+}
+
+.slot-padrinho {
+    left: 78px;
+    background-color: var(--white);
+    color: var(--blue);
+}
+
+.best-win-container {
+    width: 180px;
+    height: 100px;
+    margin-right: 15px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 5px;
+}
+
+.best-win-container .slot-card {
+    width: 100%;
+    height: 100%;
+    margin-right: 0;
+}
+
+.best-win-container .slot-header {
+    background-color: var(--gold);
+}
+
+.best-win-container .slot-name,
+.best-win-container .slot-id {
+    color: var(--blue);
+}
+
+.bonus-hunt-overlay.hunting-mode #bonus-cards-container {
+    display: flex;
+    overflow-x: auto;
+    padding: 10px 0;
+    scroll-behavior: smooth;
+}
+
+.bonus-hunt-overlay.hunting-mode .slot-card.newest-bonus {
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
+    transform: scale(1.05);
+}
+
+@keyframes highlightNewBonus {
+    0%, 100% { box-shadow: 0 0 0 rgba(0, 255, 0, 0); }
+    50% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.7); }
+}
+
+.new-bonus-highlight {
+    animation: highlightNewBonus 2s ease-in-out;
+}

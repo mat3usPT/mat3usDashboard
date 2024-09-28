@@ -15,7 +15,8 @@ class BonusHunt(db.Model):
     data_criacao = Column(DateTime, default=func.current_timestamp())
     is_active = Column(db.Boolean, default=False)
     bonus_atual_id = Column(db.Integer, db.ForeignKey('bonuses.id'), nullable=True)
-
+    phase = db.Column(db.String(20), default='hunting')
+    bonus_order = db.Column(db.String, default='')  # Armazenará a ordem dos bônus como uma string de IDs separados por vírgulas
     bonuses = relationship('Bonus', back_populates='hunt', cascade='all, delete-orphan', foreign_keys='Bonus.hunt_id')
     bonus_atual = relationship('Bonus', foreign_keys=[bonus_atual_id], post_update=True)
 
@@ -30,6 +31,13 @@ class BonusHunt(db.Model):
         self.is_active = True
         db.session.commit()
 
+    def get_ordered_bonuses(self):
+        if not self.bonus_order:
+            return self.bonuses.order_by(Bonus.id).all()
+        
+        order_dict = {id: index for index, id in enumerate(self.bonus_order.split(','))}
+        return sorted(self.bonuses, key=lambda b: order_dict.get(str(b.id), float('inf')))
+      
     def calcular_estatisticas(self):
         total_ganho = sum(b.payout for b in self.bonuses if b.payout is not None)
         total_apostas = sum(b.aposta for b in self.bonuses)
@@ -97,19 +105,24 @@ class BonusHunt(db.Model):
                 return value
             return value
 
+        # Formatar as estatísticas e tratar valores infinitos
         estatisticas = {k: handle_infinite(v) for k, v in estatisticas.items()}
 
         return {
             'id': self.id,
             'nome': self.nome,
             'custo_inicial': self.custo_inicial,
-            'data_criacao': self.data_criacao.isoformat(),
+            'data_criacao': self.data_criacao.strftime('%d/%m/%Y %H:%M') if self.data_criacao else None,
             'is_active': self.is_active,
             'bonus_atual_id': self.bonus_atual_id,
-            'bonuses': [b.to_dict() for b in self.bonuses],
+            'phase': self.phase,
+            'bonus_order': self.bonus_order,
+            'bonuses': [b.to_dict() for b in self.get_ordered_bonuses()],
             'estatisticas': estatisticas
         }
+     
 
+    
 class Bonus(db.Model):
     __tablename__ = 'bonuses'
 
@@ -121,6 +134,8 @@ class Bonus(db.Model):
     saldo_restante = Column(Float, nullable=True)
     nota = Column(String)
     padrinho = Column(String)
+    order = db.Column(db.Integer)
+
 
     hunt = relationship('BonusHunt', back_populates='bonuses', foreign_keys=[hunt_id])
     slot = relationship('Slot')
@@ -139,6 +154,7 @@ class Bonus(db.Model):
         )
 
     def to_dict(self):
+        hunt_order = self.hunt.bonus_order.split(',') if self.hunt.bonus_order else []
         return {
             'id': self.id,
             'aposta': float(self.aposta) if self.aposta is not None else None,
@@ -147,6 +163,7 @@ class Bonus(db.Model):
             'nota': self.nota,
             'padrinho': self.padrinho,
             'multiplicador': float(self.multiplicador) if self.multiplicador is not None else None,
+            'order': hunt_order.index(str(self.id)) + 1 if str(self.id) in hunt_order else None,
             'slot': {
                 'id': self.slot.id,
                 'name': self.slot.name,

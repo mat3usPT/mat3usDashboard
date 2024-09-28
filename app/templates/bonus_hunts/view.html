@@ -1,216 +1,234 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="bonus-hunt-view"></div>
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div class="d-flex align-items-center">
-            <a href="{{ url_for('bonus_hunts.list_hunts') }}" class="btn btn-secondary mr-1">
-                <i class="fas fa-arrow-left"></i>
-            </a>
-            <h1 class="mb-0 ml-2" id="hunt-name">Bonus Hunt: {{ hunt.nome }}</h1>
+
+<div class="bonus-hunt-view">
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex align-items-center">
+                <a href="{{ url_for('bonus_hunts.list_hunts') }}" class="btn btn-secondary mr-1">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <h1 id="hunt-name" class="mb-0 ml-2">Bonus Hunt: {{ hunt.nome }}</h1>
+            </div>
+            <div class="d-flex align-items-center">
+                {% if not hunt.is_active %}
+                <form action="{{ url_for('bonus_hunts.activate_hunt', id=hunt.id) }}" method="post" class="mr-2">
+                    <button type="submit" class="btn btn-outline-success">
+                        <i class="fas fa-play"></i>
+                    </button>
+                </form>
+                {% else %}
+                <span class="btn btn-success mr-2">Active</span>
+                {% endif %}
+
+                <form action="{{ url_for('bonus_hunts.reset_hunt', id=hunt.id) }}" method="post" class="mr-2">
+                    <button type="submit" class="btn btn-outline-warning"
+                        onclick="return confirm('Are you sure you want to reset this hunt?')">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </form>
+
+                <select id="hunt-phase" class="form-control mr-2" data-hunt-id="{{ hunt.id }}">
+                    <option value="hunting" {% if hunt.phase=='hunting' %}selected{% endif %}>Hunting</option>
+                    <option value="opening" {% if hunt.phase=='opening' %}selected{% endif %}>Opening</option>
+                    <option value="ended" {% if hunt.phase=='ended' %}selected{% endif %}>Ended</option>
+                </select>
+            </div>
         </div>
-        <div class="d-flex align-items-center">
-            {% if not hunt.is_active %}
-            <form action="{{ url_for('bonus_hunts.activate_hunt', id=hunt.id) }}" method="POST" class="mr-2">
-                <button type="submit" class="btn btn-success">Activate Hunt</button>
+
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 mb-2">
+            <div class="col mb-2">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white py-1">
+                        <small>General Info</small>
+                    </div>
+                    <div class="card-body py-2">
+                        <p><small><strong>Created:</strong> {{ hunt.data_criacao }}</small></p>
+                        <p><small><strong>Starting Balance:</strong> <span id="custo-inicial">{{ "€%.2f"|format(hunt.custo_inicial) }}</span></small></p>
+                        <p><small><strong>Investment:</strong> <span id="investimento">{{ "€%.2f"|format(hunt['estatisticas']['investimento']) }}</span></small></p>
+                        <p><small><strong>Remaining Balance:</strong> <span id="saldo-restante">{{ "€%.2f"|format(hunt['estatisticas']['saldo_restante']) }}</span></small></p>
+                        <p><small><strong>Total Won:</strong> <span id="total-ganho">{{ "€%.2f"|format(hunt['estatisticas']['total_ganho']) }}</span></small></p>
+                        <p><small><strong>Profit/Loss:</strong> <span id="lucro-prejuizo">{{ "€%.2f"|format(hunt['estatisticas']['lucro_prejuizo']) }}</span></small></p>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="col mb-2">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white py-1">
+                        <small>Bonus Stats</small>
+                    </div>
+                    <div class="card-body py-2">
+                        <p><small><strong>Bonuses:</strong> <span id="num-bonus">{{ hunt['estatisticas']['num_bonus'] }}</span></small></p>
+                        <p><small><strong>Open Bonuses:</strong> <span id="num-bonus-abertos">{{ hunt['estatisticas']['num_bonus_abertos'] }}</span></small></p>
+                        <p><small><strong>AVG Init. Bet:</strong> <span id="media-aposta-inicial">{{ "€%.2f"|format(hunt['estatisticas']['media_aposta_inicial']) }}</span></small></p>
+                        <p><small><strong>AVG Remaining Bet:</strong> <span id="media-aposta">{{ "€%.2f"|format(hunt['estatisticas']['media_aposta']) }}</span></small></p>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="col mb-2">
+                <div class="card h-100">
+                    <div class="card-header bg-info text-white py-1">
+                        <small>Break Even & Averages</small>
+                    </div>
+                    <div class="card-body py-2">
+                        <p><small><strong>Init. BE X:</strong> <span id="break-even-x-inicial">{{ "%.2fx"|format(hunt['estatisticas']['break_even_x_inicial']) }}</span></small></p>
+                        <p><small><strong>Init. BE €:</strong> <span id="break-even-euro-inicial">{{ "€%.2f"|format(hunt['estatisticas']['break_even_euro_inicial']) }}</span></small></p>
+                        <p><small><strong>Open BE X:</strong> <span id="break-even-x">{{ "%.2fx"|format(hunt['estatisticas']['break_even_x']) }}</span></small></p>
+                        <p><small><strong>Open BE €:</strong> <span id="break-even-euro">{{ "€%.2f"|format(hunt['estatisticas']['break_even_euro']) }}</span></small></p>
+                        <p><small><strong>AVG X:</strong> <span id="avg-x">{{ "%.2fx"|format(hunt['estatisticas']['avg_x']) }}</span></small></p>
+                        <p><small><strong>AVG €:</strong> <span id="avg-euro">{{ "€%.2f"|format(hunt['estatisticas']['avg_euro']) }}</span></small></p>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="col mb-2">
+                <div class="card h-100">
+                    <div class="card-header bg-warning text-dark py-1">
+                        <small>Best & Worst Slots</small>
+                    </div>
+                    <div class="card-body py-2">
+                        <p><small><strong>Best X:</strong> <span id="best-slot-x">
+                            {% if hunt['estatisticas']['best_bonus_x'] %}
+                            {{ hunt['estatisticas']['best_bonus_x']['slot']['name'] }} - {{ "%.2fx"|format(hunt['estatisticas']['best_bonus_x']['multiplicador']) }}
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </span></small></p>
+                        <p><small><strong>Best €:</strong> <span id="best-slot-euro">
+                            {% if hunt['estatisticas']['best_bonus_euro'] %}
+                            {{ hunt['estatisticas']['best_bonus_euro']['slot']['name'] }} - {{ "€%.2f"|format(hunt['estatisticas']['best_bonus_euro']['payout']) }}
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </span></small></p>
+                        <p><small><strong>Worst X:</strong> <span id="worst-slot-x">
+                            {% if hunt['estatisticas']['worst_bonus_x'] %}
+                            {{ hunt['estatisticas']['worst_bonus_x']['slot']['name'] }} - {{ "%.2fx"|format(hunt['estatisticas']['worst_bonus_x']['multiplicador']) }}
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </span></small></p>
+                        <p><small><strong>Worst €:</strong> <span id="worst-slot-euro">
+                            {% if hunt['estatisticas']['worst_bonus_euro'] and hunt['estatisticas']['worst_bonus_euro']['payout'] is not none %}
+                            {{ hunt['estatisticas']['worst_bonus_euro']['slot']['name'] }} - {{ "€%.2f"|format(hunt['estatisticas']['worst_bonus_euro']['payout']) }}
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </span></small></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <form id="add-bonus-form" action="{{ url_for('bonus_hunts.add_bonus', id=hunt.id) }}" method="POST">
+                <div class="form-row">
+                    <div class="slot-search-container">
+                        <input type="text" id="slotSearch" class="form-control" placeholder="Search for a slot...">
+                        <button type="button" class="btn btn-outline-secondary" id="addNewSlotBtn">+</button>
+                        <div id="suggestions" class="list-group"></div>
+                        <input type="hidden" id="slotId" name="slot_id">
+                    </div>
+                    <div class="form-group">
+                        <input type="number" step="0.01" name="aposta" class="form-control" placeholder="Bet" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="number" step="0.01" name="saldo_restante" class="form-control"
+                            placeholder="Balance">
+                    </div>
+                    <div class="form-group">
+                        <input type="text" name="nota" class="form-control" placeholder="Note">
+                    </div>
+                    <div class="form-group">
+                        <input type="text" name="padrinho" class="form-control" placeholder="Padrinho">
+                    </div>
+                    <button type="submit" class="btn btn-primary">+</button>
+                </div>
             </form>
-            {% else %}
-            <button type="button" class="btn btn-success mr-2" disabled>Active Hunt</button>
-            {% endif %}
         </div>
-    </div>
-
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 mb-4">
-        <div class="col mb-4">
-            <div class="card h-100">
-                <div class="card-header bg-primary text-white">
-                    General Info
-                </div>
-                <div class="card-body">
-                    <p><strong>Status:</strong> <span id="status">{{ hunt.status }}</span></p>
-                    <p><strong>Created:</strong> {{ hunt.data_criacao.strftime('%d/%m/%Y %H:%M') }}</p>
-                    <p><strong>Starting Balance:</strong> <span id="custo-inicial">{{ hunt.custo_inicial }}</span></p>
-                    <p><strong>Investment:</strong> <span id="investimento">{{ hunt.estatisticas.investimento }}</span>
-                    </p>
-                    <p><strong>Remaining Balance:</strong> <span id="saldo-restante">{{ hunt.estatisticas.saldo_restante
-                            }}</span></p>
-                    <p><strong>Total Won:</strong> <span id="total-ganho">{{ hunt.estatisticas.total_ganho }}</span></p>
-                    <p><strong>Profit/Loss:</strong> <span id="lucro-prejuizo">{{ hunt.estatisticas.lucro_prejuizo
-                            }}</span></p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col mb-4">
-            <div class="card h-100">
-                <div class="card-header bg-success text-white">
-                    Bonus Stats
-                </div>
-                <div class="card-body">
-                    <p><strong>Bonuses:</strong> <span id="num-bonus">{{ hunt.estatisticas.num_bonus }}</span></p>
-                    <p><strong>Open Bonuses:</strong> <span id="num-bonus-abertos">{{
-                            hunt.estatisticas.num_bonus_abertos }}</span></p>
-                    <p><strong>AVG Init. Bet:</strong> <span id="media-aposta-inicial">{{
-                            hunt.estatisticas.media_aposta_inicial }}</span></p>
-                    <p><strong>AVG Remaining Bet:</strong> <span id="media-aposta">{{ hunt.estatisticas.media_aposta
-                            }}</span></p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col mb-4">
-            <div class="card h-100">
-                <div class="card-header bg-info text-white">
-                    Break Even & Averages
-                </div>
-                <div class="card-body">
-                    <p><strong>Init. BE X:</strong> <span id="break-even-x-inicial">{{
-                            hunt.estatisticas.break_even_x_inicial }}</span></p>
-                    <p><strong>Init. BE €:</strong> <span id="break-even-euro-inicial">{{
-                            hunt.estatisticas.break_even_euro_inicial }}</span></p>
-                    <p><strong>Open BE X:</strong> <span id="break-even-x">{{ hunt.estatisticas.break_even_x }}</span>
-                    </p>
-                    <p><strong>Open BE €:</strong> <span id="break-even-euro">{{ hunt.estatisticas.break_even_euro
-                            }}</span></p>
-                    <p><strong>AVG X:</strong> <span id="avg-x">{{ hunt.estatisticas.avg_x }}</span></p>
-                    <p><strong>AVG €:</strong> <span id="avg-euro">{{ hunt.estatisticas.avg_euro }}</span></p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col mb-4">
-            <div class="card h-100">
-                <div class="card-header bg-warning text-dark">
-                    Best & Worst Slots
-                </div>
-                <div class="card-body">
-                    <p><strong>Best X:</strong> <span id="best-slot-x">
-                            {% if hunt.estatisticas.best_bonus_x %}
-                            {{ hunt.estatisticas.best_bonus_x.slot.name }} - {{
-                            hunt.estatisticas.best_bonus_x.multiplicador }}
-                            {% else %}
-                            N/A
-                            {% endif %}
-                        </span></p>
-                    <p><strong>Best €:</strong> <span id="best-slot-euro">
-                            {% if hunt.estatisticas.best_bonus_euro %}
-                            {{ hunt.estatisticas.best_bonus_euro.slot.name }} - {{
-                            hunt.estatisticas.best_bonus_euro.payout }}
-                            {% else %}
-                            N/A
-                            {% endif %}
-                        </span></p>
-                    <p><strong>Worst X:</strong> <span id="worst-slot-x">
-                            {% if hunt.estatisticas.worst_bonus_x %}
-                            {{ hunt.estatisticas.worst_bonus_x.slot.name }} - {{
-                            hunt.estatisticas.worst_bonus_x.multiplicador }}x
-                            {% else %}
-                            N/A
-                            {% endif %}
-                        </span></p>
-                    <p><strong>Worst €:</strong> <span id="worst-slot-euro">
-                            {% if hunt.estatisticas.worst_bonus_euro and hunt.estatisticas.worst_bonus_euro.payout is
-                            not none %}
-                            {{ hunt.estatisticas.worst_bonus_euro.slot.name }} - {{
-                            hunt.estatisticas.worst_bonus_euro.payout }}
-                            {% else %}
-                            N/A
-                            {% endif %}
-                        </span></p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="mb-4">
-        <h2 id="add-new-bonus-title">Add New Bonus</h2>
-        <form id="add-bonus-form" action="{{ url_for('bonus_hunts.add_bonus', id=hunt.id) }}" method="POST">
-            <div class="form-row">
-                <div class="slot-search-container">
-                    <input type="text" id="slotSearch" class="form-control" placeholder="Search for a slot...">
-                    <button type="button" class="btn btn-outline-secondary" id="addNewSlotBtn">+</button>
-                    <div id="suggestions" class="list-group"></div>
-                    <input type="hidden" id="slotId" name="slot_id">
-                </div>
-                <div class="form-group">
-                    <input type="number" step="0.01" name="aposta" class="form-control" placeholder="Bet" required>
-                </div>
-                <div class="form-group">
-                    <input type="number" step="0.01" name="saldo_restante" class="form-control" placeholder="Balance">
-                </div>
-                <div class="form-group">
-                    <input type="text" name="nota" class="form-control" placeholder="Note">
-                </div>
-                <div class="form-group">
-                    <input type="text" name="padrinho" class="form-control" placeholder="Padrinho">
-                </div>
-                <button type="submit" class="btn btn-primary">+</button>
-            </div>
-        </form>
-    </div>
-
-    <h2>Bonuses</h2>
-    <div class="table-responsive">
-        <table id="bonus-table" class="table table-striped">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Slot</th>
-                    <th>Bet</th>
-                    <th>Payout</th>
-                    <th>Multiplier</th>
-                    <th>Notes</th>
-                    <th>Padrinho</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for bonus in hunt.bonuses %}
-                <tr data-bonus-id="{{ bonus.id }}" class="{{ 'active-bonus' if bonus.id == hunt.bonus_atual_id }}">
-                    <td>{{ loop.index }}</td>
-                    <td>
-                        <div class="slot-info">
-                            <img src="{{ url_for('static', filename=bonus.slot.image) }}" alt="{{ bonus.slot.name }}">
-                            <div class="slot-text">
-                                <span class="slot-name">{{ bonus.slot.name }}</span>
-                                <small class="slot-provider">{{ bonus.slot.provider }}</small>
+        <div class="table-responsive">
+            <table id="bonus-table" class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Slot</th>
+                        <th class="sortable" data-sort="bet">Bet</th>
+                        <th class="sortable" data-sort="payout">Payout</th>
+                        <th class="sortable" data-sort="multiplier">Multi</th>
+                        <th>Notes</th>
+                        <th>Padrinho</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="bonus-tbody">
+                    {% for bonus in hunt.bonuses %}
+                    <tr data-bonus-id="{{ bonus.id }}">
+                        <td class="slot-col">
+                            <div class="slot-info">
+                                <span class="drag-handle" style="cursor: move;">&#9776;</span>
+                                <img src="{{ bonus.slot.image }}" alt="{{ bonus.slot.name }}">
+                                <div class="slot-text">
+                                    <span class="slot-name">{{ bonus.slot.name }}</span>
+                                    <small>{{ bonus.slot.provider }}</small>
+                                </div>
                             </div>
-                        </div>
-                    </td>
-                    <td>{{ bonus.aposta }}</td>
-                    <td class="payout-cell">
-                        {% if bonus.id == hunt.bonus_atual_id %}
-                        <input type="number" step="0.01" name="payout"
-                            value="{{ bonus.payout if bonus.payout else '' }}" class="form-control payout-input"
-                            data-bonus-id="{{ bonus.id }}">
-                        {% else %}
-                        {{ bonus.payout if bonus.payout else '' }}
-                        {% endif %}
-                    </td>
-                    <td>{{ bonus.multiplicador if bonus.payout else '' }}</td>
-                    <td>{{ bonus.nota or '' }}</td>
-                    <td>{{ bonus.padrinho or '' }}</td>
-                    <td>
-                        <button class="btn btn-sm action-btn btn-outline-success play-bonus-btn"
-                            data-bonus-id="{{ bonus.id }}">
-                            <i class="fas fa-play"></i>
-                        </button>
-                        <button class="btn btn-sm action-btn btn-primary edit-bonus-btn" data-bonus-id="{{ bonus.id }}">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-sm action-btn btn-danger delete-bonus-btn"
-                            data-bonus-id="{{ bonus.id }}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        </td>
+                        <td class="bet-col" data-bet="{{ bonus.aposta }}">{{ "€%.2f"|format(bonus.aposta) }}</td>
+                        <td class="payout-cell" data-payout="{{ bonus.payout or '' }}">
+                            {% if hunt.phase == 'opening' and hunt.bonus_atual_id == bonus.id %}
+                            <input type="number" step="0.01" name="payout" value="{{ bonus.payout or '' }}"
+                                class="form-control payout-input" data-bonus-id="{{ bonus.id }}">
+                            {% else %}
+                            {{ "€%.2f"|format(bonus.payout) if bonus.payout else '' }}
+                            {% endif %}
+                        </td>
+                        <td class="multiplier-col" data-multiplier="{{ bonus.multiplicador or '' }}">{{
+                            "%.2fx"|format(bonus.multiplicador) if bonus.multiplicador else '' }}</td>
+                        <td class="notes-col">{{ bonus.nota or '' }}</td>
+                        <td class="padrinho-col">{{ bonus.padrinho or '' }}</td>
+                        <td class="actions-col">
+                            <button class="btn btn-sm action-btn btn-outline-success play-bonus-btn"
+                                data-bonus-id="{{ bonus.id }}">
+                                <i class="fas fa-play"></i>
+                            </button>
+                            <button class="btn btn-sm action-btn btn-primary edit-bonus-btn"
+                                data-bonus-id="{{ bonus.id }}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm action-btn btn-danger delete-bonus-btn"
+                                data-bonus-id="{{ bonus.id }}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para criar nova slot -->
+<div class="modal fade" id="createSlotModal" tabindex="-1" role="dialog" aria-labelledby="createSlotModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createSlotModalLabel">Create New Slot</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- O conteúdo será carregado dinamicamente aqui -->
+            </div>
+        </div>
     </div>
 </div>
 <!-- Modal para criar nova slot -->
-<div class="modal fade" id="createSlotModal" tabindex="-1" role="dialog" aria-labelledby="createSlotModalLabel" aria-hidden="true">
+<div class="modal fade" id="createSlotModal" tabindex="-1" role="dialog" aria-labelledby="createSlotModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
@@ -267,10 +285,6 @@
         </div>
     </div>
 </div>
+<div id="hunt-data" style="display: none;" data-hunt='{{ hunt | tojson | safe }}'></div>
 </div>
-<script id="hunt-data" type="application/json">
-    
-    {{ hunt.to_dict() | tojson | safe }}
-    
-</script>
 {% endblock %}

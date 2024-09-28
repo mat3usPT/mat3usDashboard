@@ -3,22 +3,51 @@ document.addEventListener('DOMContentLoaded', function () {
     setupCreateHuntForm();
     setupHuntActions();
     setupEditHuntButtons();
+    setupHuntPhaseSelect();
+
+    if (typeof Sortable === 'undefined') {
+        console.error('Sortable library is not loaded. Some features may not work correctly.');
+    }
+
+    const huntDataElement = document.getElementById('hunt-data');
+    let huntData = null; // Definir huntData fora do bloco de if para estar acessível em todo o escopo
+
+    if (huntDataElement && huntDataElement.dataset.hunt) {
+        try {
+            huntData = JSON.parse(huntDataElement.dataset.hunt); // Atribuir valor a huntData
+            updateStatistics(huntData);
+            updateBonusTable(huntData);
+        } catch (error) {
+            console.error("Erro ao analisar JSON:", error);
+        }
+    } else {
+        console.error("O elemento hunt-data não contém JSON válido.");
+    }
+
+    const bonusTable = document.getElementById('bonus-table');
+    if (bonusTable) {
+        bonusTable.addEventListener('keydown', function (e) {
+            if (e.target.classList.contains('payout-input')) {
+                handlePayoutInput(e);
+            }
+        });
+    }
 
     // Verifica se estamos na página de visualização de um Bonus Hunt individual
-    if (document.querySelector('.bonus-hunt-view')) {
-               // Chama updateStatistics imediatamente após o carregamento da página
-               const huntData = JSON.parse(document.getElementById('hunt-data').textContent);
-               updateStatistics(huntData);
-               updateBonusTable(huntData);
-               setupBonusActions();
-               setupSaveBonusEdit();
-               setupAddBonusForm();
-               setupAddNewSlotButton();
-               setupSlotSearch();
-               initProviderSuggestions();
+    if (document.querySelector('.bonus-hunt-view') && huntData) { // Garantir que huntData existe
+        updateStatistics(huntData);
+        updateBonusTable(huntData);
+        setupBonusActions();
+        setupSaveBonusEdit();
+        setupAddBonusForm();
+        setupAddNewSlotButton();
+        setupSlotSearch();
+        initProviderSuggestions();
+        setupSortableTable();
+        setupDraggableRows();
+        setupPayoutInputs();
     }
 });
-
 
 ///////////////// LIST.HTML //////////////////////////
 //////////////////////////////////////////////////////
@@ -175,6 +204,319 @@ function setupEditHuntButtons() {
 //////////////////////////////////////////////////////
 //////////////////////////////////////////////////////
 
+function setupPayoutInputs() {
+    document.addEventListener('focus', function (event) {
+        const target = event.target;
+        if (target.classList.contains('payout-input')) {
+            target.style.display = 'inline-block';
+        }
+    }, true);
+}
+
+function setupSortableTable() {
+    const table = document.getElementById('bonus-table');
+    const headers = table.querySelectorAll('th.sortable');
+
+    headers.forEach(header => {
+        header.addEventListener('click', () => {
+            const sortBy = header.dataset.sort;
+            const isAscending = header.classList.contains('asc');
+
+            sortTable(sortBy, !isAscending);
+
+            headers.forEach(h => h.classList.remove('asc', 'desc'));
+            header.classList.add(isAscending ? 'desc' : 'asc');
+        });
+    });
+}
+
+function sortTable(sortBy, ascending) {
+    const tbody = document.getElementById('bonus-tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    rows.sort((a, b) => {
+        let aValue = a.querySelector(`td[data-${sortBy}]`).dataset[sortBy];
+        let bValue = b.querySelector(`td[data-${sortBy}]`).dataset[sortBy];
+
+        if (sortBy === 'bet' || sortBy === 'payout') {
+            aValue = parseFloat(aValue) || 0;
+            bValue = parseFloat(bValue) || 0;
+        } else if (sortBy === 'multiplier') {
+            aValue = parseFloat(aValue.replace('x', '')) || 0;
+            bValue = parseFloat(bValue.replace('x', '')) || 0;
+        }
+
+        if (aValue < bValue) return ascending ? -1 : 1;
+        if (aValue > bValue) return ascending ? 1 : -1;
+        return 0;
+    });
+    rows.forEach(row => tbody.appendChild(row));
+
+    // Atualizar a ordem no backend e no hunt-data local
+    const newOrder = rows.map(row => row.dataset.bonusId);
+    const huntId = document.getElementById('hunt-phase').dataset.huntId;
+
+    fetch(`/bonus-hunts/${huntId}/update_bonus_order`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ order: newOrder }),
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Bonus order updated successfully');
+                // Atualizar os dados do hunt localmente
+                const huntDataElement = document.getElementById('hunt-data');
+                let huntData = JSON.parse(huntDataElement.textContent);
+                huntData.bonus_order = newOrder.join(',');
+                huntData.bonuses.sort((a, b) => newOrder.indexOf(a.id.toString()) - newOrder.indexOf(b.id.toString()));
+                huntDataElement.textContent = JSON.stringify(huntData);
+            } else {
+                console.error('Failed to update bonus order:', data.error);
+            }
+        })
+        .catch(error => console.error('Error updating bonus order:', error));
+}
+
+function setupDraggableRows() {
+    if (typeof Sortable === 'undefined') {
+        console.error('Sortable library is not loaded');
+        return;
+    }
+
+    const tbody = document.getElementById('bonus-tbody');
+    if (!tbody) {
+        console.error('Table body not found');
+        return;
+    }
+
+    new Sortable(tbody, {
+        animation: 150,
+        handle: '.drag-handle',  // Use a handle for dragging
+        onEnd: function (evt) {
+            // Get the new order of bonus IDs
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const newOrder = rows.map(row => row.dataset.bonusId);
+
+            // Call updateBonusOrder with the new order
+            updateBonusOrder(newOrder);
+        }
+    });
+}
+
+function updateBonusOrder(bonusOrder) {
+    // Get hunt_id from the #hunt-phase element
+    const huntId = document.querySelector('#hunt-phase').dataset.huntId;
+
+    if (!huntId) {
+        console.error('Hunt ID is undefined');
+        return;
+    }
+
+    fetch(`/bonus-hunts/${huntId}/update_bonus_order`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ order: bonusOrder }),
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                console.log('Bonus order updated successfully');
+            } else {
+                throw new Error(data.error || 'Failed to update bonus order');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating bonus order:', error);
+            alert('Failed to update bonus order: ' + error.message);
+        });
+}
+
+function setupHuntPhaseSelect() {
+    const phaseSelect = document.getElementById('hunt-phase');
+    if (!phaseSelect) return;
+
+    phaseSelect.addEventListener('change', function () {
+        const huntId = this.dataset.huntId;
+        const newPhase = this.value;
+
+        fetch(`/bonus-hunts/${huntId}/update-phase`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ phase: newPhase })
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    console.log('Hunt phase updated successfully');
+
+                    // Atualizar o elemento hunt-data com os novos dados
+                    const huntDataElement = document.getElementById('hunt-data');
+                    if (huntDataElement) {
+                        huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
+                    }
+
+                    // Passar o objeto hunt completo para updateUIForPhase
+                    updateUIForPhase(data.hunt);
+
+                    // Atualizar o formulário de adição de bônus
+                    updateAddBonusForm(data.hunt);
+
+                    // Atualizar a tabela de bônus e estatísticas
+                    updateBonusTable(data.hunt);
+                    updateStatistics(data.hunt);
+                } else {
+                    console.error('Failed to update hunt phase:', data.error);
+                    alert(`Failed to update hunt phase: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating hunt phase:', error);
+                alert('An error occurred while updating the hunt phase. Please try again.');
+            });
+    });
+}
+
+function updateUIForPhase(hunt) {
+    console.log('Received hunt data in updateUIForPhase:', hunt);
+
+    if (!hunt || typeof hunt !== 'object' || !hunt.phase) {
+        console.error('Invalid hunt object passed to updateUIForPhase');
+        return;
+    }
+
+    const bonusTable = document.getElementById('bonus-table');
+    if (!bonusTable) {
+        console.error('Bonus table not found');
+        return;
+    }
+
+    const playButtons = bonusTable.querySelectorAll('.play-bonus-btn');
+    const payoutCells = bonusTable.querySelectorAll('.payout-cell');
+    const bonusRows = bonusTable.querySelectorAll('tr[data-bonus-id]');
+
+    switch (hunt.phase) {
+        case 'hunting':
+            playButtons.forEach(btn => {
+                btn.style.display = 'none';
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-success');
+            });
+            payoutCells.forEach(cell => {
+                const input = cell.querySelector('.payout-input');
+                if (input) {
+                    input.style.display = 'none';
+                    input.disabled = true;
+                }
+                const payoutText = cell.querySelector('.payout-text');
+                if (payoutText) {
+                    payoutText.style.display = 'inline';
+                }
+            });
+            // Desativar todos os bônus
+            bonusRows.forEach(row => {
+                row.classList.remove('active-bonus');
+            });
+            // Resetar o bônus atual
+            hunt.bonus_atual_id = null;
+            fetch(`/bonus-hunts/${hunt.id}/reset-active-bonus`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            }).then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Active bonus reset successfully');
+                    }
+                });
+            setupDraggableRows();
+            break;
+
+        case 'opening':
+            playButtons.forEach(btn => btn.style.display = 'inline-block');
+            payoutCells.forEach(cell => {
+                const input = cell.querySelector('.payout-input');
+                if (input) {
+                    input.style.display = 'inline-block';
+                    input.disabled = false;
+                }
+                const payoutText = cell.querySelector('.payout-text');
+                if (payoutText) {
+                    payoutText.style.display = 'none';
+                }
+            });
+            // Ativar o primeiro bônus
+            const firstBonusRow = bonusRows[0];
+            if (firstBonusRow) {
+                const firstBonusId = firstBonusRow.dataset.bonusId;
+                activateBonus(firstBonusId);
+            }
+            if (typeof Sortable !== 'undefined') {
+                const tbody = document.getElementById('bonus-tbody');
+                const sortableInstance = Sortable.get(tbody);
+                if (sortableInstance) {
+                    sortableInstance.destroy();
+                }
+            }
+            break;
+
+        case 'ended':
+            playButtons.forEach(btn => btn.style.display = 'none');
+            payoutCells.forEach(cell => {
+                const input = cell.querySelector('.payout-input');
+                if (input) {
+                    input.style.display = 'none';
+                    input.disabled = true;
+                }
+                const payoutText = cell.querySelector('.payout-text');
+                if (payoutText) {
+                    payoutText.style.display = 'inline';
+                }
+            });
+            // Desativar todos os bônus
+            bonusRows.forEach(row => {
+                row.classList.remove('active-bonus');
+            });
+            if (typeof Sortable !== 'undefined') {
+                const tbody = document.getElementById('bonus-tbody');
+                const sortableInstance = Sortable.get(tbody);
+                if (sortableInstance) {
+                    sortableInstance.destroy();
+                }
+            }
+            break;
+
+        default:
+            console.error('Unknown hunt phase:', hunt.phase);
+    }
+
+    // Atualizar o hunt-data
+    const huntDataElement = document.getElementById('hunt-data');
+    if (huntDataElement) {
+        huntDataElement.dataset.hunt = JSON.stringify(hunt);
+    }
+}
+
 function setupBonusActions() {
     const bonusTable = document.getElementById('bonus-table');
     if (bonusTable) {
@@ -190,93 +532,220 @@ function setupBonusActions() {
                 handleDeleteBonus(e);
             }
         });
-
-        bonusTable.addEventListener('keydown', function (e) {
-            if (e.target.classList.contains('payout-input')) {
-                handlePayoutInput(e);
-            }
-        });
     }
 }
 
 function handlePayoutInput(e) {
+    console.log('Tecla pressionada:', e.key);  // Log para depuração
     if (e.key === 'Enter') {
         e.preventDefault();
         const input = e.target;
         const bonusId = input.dataset.bonusId;
         const payout = input.value.trim();
 
-        updatePayout(bonusId, payout);
+        console.log(`Submetendo payout para o bônus ${bonusId}: ${payout}`);
+
+        updatePayout(bonusId, payout)
+            .then(() => {
+                console.log(`Payout atualizado com sucesso para o bônus ${bonusId}`);
+            })
+            .catch(error => {
+                console.error('Erro ao atualizar payout:', error);
+                alert('Erro ao atualizar payout: ' + error.message);
+            });
     } else if (e.key === 'Escape') {
         e.preventDefault();
-        e.target.blur();
+        const input = e.target;
+        input.blur();
 
-        const bonusId = e.target.dataset.bonusId;
+        const bonusId = input.dataset.bonusId;
         handleDeactivateBonus(bonusId);
     }
+}
+
+function activateNextBonus() {
+    const huntData = JSON.parse(document.getElementById('hunt-data').textContent);
+    const orderedBonuses = huntData.bonuses.sort((a, b) => a.order - b.order);
+    const currentIndex = orderedBonuses.findIndex(b => b.id === huntData.bonus_atual_id);
+    if (currentIndex < orderedBonuses.length - 1) {
+        const nextBonus = orderedBonuses[currentIndex + 1];
+        activateBonus(nextBonus.id);
+    }
+}
+
+function activateBonus(bonusId) {
+    console.log(`Ativando bônus: ${bonusId}`);
+    fetch(`/bonus-hunts/activate_bonus/${bonusId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log(`Bônus ${bonusId} ativado com sucesso`);
+                const huntDataElement = document.getElementById('hunt-data');
+                if (huntDataElement) {
+                    huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
+                }
+
+                updateBonusTable(data.hunt);
+                focusPayoutInput(bonusId);
+            } else {
+                throw new Error(data.error || 'Falha ao ativar o bônus');
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao ativar o bônus:', error);
+            alert('Falha ao ativar o bônus: ' + error.message);
+        });
+}
+
+function deactivateBonus(bonusId) {
+    fetch(`/bonus-hunts/deactivate_bonus/${bonusId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log(`Bonus with ID ${bonusId} deactivated`);
+
+                // Remover a classe 'active-bonus' da linha correspondente
+                const row = document.querySelector(`tr[data-bonus-id="${bonusId}"]`);
+                if (row) {
+                    row.classList.remove('active-bonus');
+                }
+
+                // Esconder o campo de payout para o bônus desativado
+                const payoutInput = row.querySelector('.payout-input');
+                if (payoutInput) {
+                    payoutInput.value = ''; // Limpar o valor
+                    payoutInput.style.display = 'none'; // Esconder o campo
+                    payoutInput.focus();
+                }
+
+                // Atualizar a tabela para refletir as mudanças
+                updateBonusTable(data.hunt);
+            } else {
+                console.error('Failed to deactivate bonus:', data.error);
+            }
+        })
+        .catch(error => console.error('Erro ao desativar o bónus:', error));
 }
 
 function handlePlayBonus(e) {
     const button = e.target.closest('.play-bonus-btn');
     const bonusId = button.dataset.bonusId;
     const row = button.closest('tr');
+    const isCurrentlyActive = row.classList.contains('active-bonus');
 
-    if (row.classList.contains('active-bonus')) {
-        deactivateBonus(bonusId);
-    } else {
-        activateBonus(bonusId);
-    }
-}
+    const url = isCurrentlyActive ?
+        `/bonus-hunts/deactivate_bonus/${bonusId}` :
+        `/bonus-hunts/activate_bonus/${bonusId}`;
 
-function activateBonus(bonusId) {
-    fetch(`/bonus-hunts/activate_bonus/${bonusId}`, { method: 'POST' })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => response.json())
         .then(data => {
             if (data.success) {
+                console.log('Resposta do servidor:', data);
+
+                const huntDataElement = document.getElementById('hunt-data');
+                if (huntDataElement) {
+                    huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
+                }
+
                 updateBonusTable(data.hunt);
                 focusPayoutInput(bonusId);
+                updateStatistics(data.hunt);
+
+                console.log(`Bônus ${bonusId} ${isCurrentlyActive ? 'desativado' : 'ativado'}`);
             } else {
-                throw new Error(data.error || 'Unknown error occurred');
+                throw new Error(data.error || 'Falha ao atualizar o status do bônus');
             }
         })
         .catch(error => {
-            console.error('Error activating bonus:', error);
-            alert('Failed to activate bonus: ' + error.message);
+            console.error('Erro ao atualizar o status do bônus:', error);
+            alert('Erro ao atualizar o status do bônus: ' + error.message);
         });
 }
 
-function deactivateBonus(bonusId) {
-    fetch(`/bonus-hunts/deactivate_bonus/${bonusId}`, { method: 'POST' })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+function updateSingleBonus(hunt, bonusId) {
+    const row = document.querySelector(`tr[data-bonus-id="${bonusId}"]`);
+    if (!row) {
+        console.error(`Linha para o bônus ${bonusId} não encontrada`);
+        return;
+    }
+
+    const bonus = hunt.bonuses.find(b => b.id === parseInt(bonusId));
+    if (!bonus) {
+        console.error(`Bônus ${bonusId} não encontrado nos dados do hunt`);
+        return;
+    }
+
+    const isActive = bonus.id === hunt.bonus_atual_id;
+    console.log(`Atualizando bônus ${bonusId}, ativo: ${isActive}`);
+
+    // Atualizar a linha do bônus
+    updateBonusRow(row, bonus, hunt, isActive);
+
+    // Atualizar o estado ativo de todas as linhas
+    document.querySelectorAll('#bonus-tbody tr').forEach(r => {
+        const rowBonusId = r.dataset.bonusId;
+        const isActiveRow = rowBonusId === String(hunt.bonus_atual_id);
+        r.classList.toggle('active-bonus', isActiveRow);
+        const playBtn = r.querySelector('.play-bonus-btn');
+        if (playBtn) {
+            playBtn.classList.toggle('btn-outline-success', !isActiveRow);
+            playBtn.classList.toggle('btn-success', isActiveRow);
+        }
+
+        // Atualizar o campo de payout apenas para o bônus atual
+        if (rowBonusId === bonusId) {
+            const payoutCell = r.querySelector('.payout-cell');
+            if (payoutCell) {
+                if (isActiveRow && hunt.phase === 'opening') {
+                    let payoutInput = payoutCell.querySelector('.payout-input');
+                    if (!payoutInput) {
+                        payoutCell.innerHTML = `
+                            <input type="number" step="0.01" name="payout" 
+                                   value="${bonus.payout || ''}" 
+                                   class="form-control payout-input" 
+                                   data-bonus-id="${bonus.id}">
+                        `;
+                        payoutInput = payoutCell.querySelector('.payout-input');
+                        payoutInput.addEventListener('keydown', handlePayoutInput);
+                    } else {
+                        payoutInput.value = bonus.payout || '';
+                        payoutInput.style.display = 'block';
+                    }
+                } else {
+                    payoutCell.innerHTML = bonus.payout ? formatCurrency(bonus.payout) : '';
+                }
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                updateBonusTable(data.hunt);
-            } else {
-                throw new Error(data.error || 'Unknown error occurred');
-            }
-        })
-        .catch(error => {
-            console.error('Error deactivating bonus:', error);
-            alert('Failed to deactivate bonus: ' + error.message);
-        });
+        }
+    });
 }
 
 function focusPayoutInput(bonusId) {
-    const input = document.querySelector(`tr[data-bonus-id="${bonusId}"] .payout-input`);
-    if (input) {
-        input.value = '';
-        input.focus();
-    }
+    setTimeout(() => {
+        const payoutInput = document.querySelector(`.payout-input[data-bonus-id="${bonusId}"]`);
+        if (payoutInput) {
+            payoutInput.focus();
+            payoutInput.select();  // Isso selecionará todo o texto no input
+        }
+    }, 100);  // Pequeno delay para garantir que o DOM foi atualizado
 }
 
 function handlePayoutInput(e) {
@@ -297,11 +766,39 @@ function handlePayoutInput(e) {
 }
 
 function handleDeactivateBonus(bonusId) {
-    deactivateBonus(bonusId);
+    console.log(`Desativando bônus: ${bonusId}`);
+    fetch(`/bonus-hunts/deactivate_bonus/${bonusId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Bônus desativado:', bonusId);
+
+                const huntDataElement = document.getElementById('hunt-data');
+                if (huntDataElement) {
+                    huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
+                }
+
+                updateBonusTable(data.hunt);
+                updateStatistics(data.hunt);
+            } else {
+                throw new Error(data.error || 'Falha ao desativar o bônus');
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao desativar o bônus:', error);
+            alert('Erro ao desativar o bônus: ' + error.message);
+        });
 }
 
 function updatePayout(bonusId, payout) {
-    fetch(`/bonus-hunts/update_payout/${bonusId}`, {
+    console.log(`Iniciando atualização de payout para o bônus ${bonusId}`);
+    return fetch(`/bonus-hunts/update_payout/${bonusId}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -309,67 +806,134 @@ function updatePayout(bonusId, payout) {
         },
         body: JSON.stringify({ payout: payout })
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            updateBonusTable(data.hunt);
-            updateStatistics(data.hunt);
-            if (data.next_bonus_id) {
-                activateBonus(data.next_bonus_id);
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-        } else {
-            throw new Error(data.error || 'Unknown error occurred');
-        }
-    })
-    .catch(error => {
-        console.error('Error updating payout:', error);
-        alert('Error updating payout: ' + error.message);
-    });
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                console.log(`Payout atualizado com sucesso para o bônus ${bonusId}`);
+                const huntDataElement = document.getElementById('hunt-data');
+                if (huntDataElement) {
+                    huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
+                }
+
+                updateBonusTable(data.hunt);
+                updateStatistics(data.hunt);
+
+                if (data.next_bonus_id) {
+                    console.log(`Ativando próximo bônus: ${data.next_bonus_id}`);
+                    activateBonus(data.next_bonus_id);
+                }
+                return data;
+            } else {
+                throw new Error(data.error || 'Unknown error occurred');
+            }
+        });
 }
 
 function updateBonusTable(hunt) {
-    const rows = document.querySelectorAll('#bonus-table tbody tr');
-    rows.forEach(row => {
+    console.log('Atualizando tabela de bônus:', hunt);
+    const tbody = document.getElementById('bonus-tbody');
+    if (!tbody) {
+        console.error('Tabela de bônus não encontrada');
+        return;
+    }
+
+    hunt.bonuses.forEach(bonus => {
+        let row = tbody.querySelector(`tr[data-bonus-id="${bonus.id}"]`);
+        if (!row) {
+            console.log(`Criando nova linha para o bônus ${bonus.id}`);
+            row = document.createElement('tr');
+            row.dataset.bonusId = bonus.id;
+            tbody.appendChild(row);
+        }
+        const isActive = bonus.id === hunt.bonus_atual_id;
+        updateBonusRow(row, bonus, hunt, isActive);
+    });
+
+    // Remover linhas de bônus que não existem mais
+    Array.from(tbody.children).forEach(row => {
         const bonusId = row.dataset.bonusId;
-        const bonus = hunt.bonuses.find(b => b.id.toString() === bonusId);
-        if (bonus) {
-            const isActive = bonus.id === hunt.bonus_atual_id;
-            row.classList.toggle('active-bonus', isActive);
-            const playButton = row.querySelector('.play-bonus-btn');
-            playButton.classList.toggle('btn-outline-success', !isActive);
-            playButton.classList.toggle('btn-success', isActive);
-
-            row.querySelector('td:nth-child(3)').textContent = formatCurrency(bonus.aposta);
-
-            const payoutCell = row.querySelector('.payout-cell');
-            if (isActive) {
-                payoutCell.innerHTML = `<input type="number" step="0.01" name="payout" value="${bonus.payout !== null ? bonus.payout : ''}" class="form-control payout-input" data-bonus-id="${bonus.id}">`;
-                const payoutInput = payoutCell.querySelector('.payout-input');
-                payoutInput.addEventListener('keydown', handlePayoutInput);
-            } else {
-                payoutCell.textContent = bonus.payout !== null ? formatCurrency(bonus.payout) : '';
-            }
-            payoutCell.setAttribute('data-remaining-balance', bonus.saldo_restante || '');
-
-            row.querySelector('td:nth-child(5)').textContent = bonus.payout !== null ? formatMultiplier(bonus.multiplicador) : '';
-            row.querySelector('td:nth-child(6)').textContent = bonus.nota || '';
-            row.querySelector('td:nth-child(7)').textContent = bonus.padrinho || '';
+        if (!hunt.bonuses.some(b => b.id === parseInt(bonusId))) {
+            console.log(`Removendo linha do bônus ${bonusId}`);
+            row.remove();
         }
     });
-    updateStatistics(hunt);
+    updateAddBonusForm(hunt);
 }
 
+function updateBonusRow(row, bonus, hunt, isActive) {
+    row.dataset.bonusId = bonus.id;
+    row.innerHTML = `
+        <td class="slot-col">
+            <div class="slot-info">
+                <span class="drag-handle" style="cursor: move;">&#9776;</span>
+                <img src="${bonus.slot.image}" alt="${bonus.slot.name}">
+                <div class="slot-text">
+                    <span class="slot-name">${bonus.slot.name}</span>
+                    <small>${bonus.slot.provider}</small>
+                </div>
+            </div>
+        </td>
+        <td class="bet-col" data-bet="${bonus.aposta}">${formatCurrency(bonus.aposta)}</td>
+        <td class="payout-cell" data-payout="${bonus.payout || ''}">
+            <input type="number" step="0.01" name="payout" value="${bonus.payout || ''}"
+                class="form-control payout-input" data-bonus-id="${bonus.id}" 
+                style="display: ${hunt.phase === 'opening' && isActive ? 'inline-block' : 'none'};">
+            <span class="payout-text">${bonus.payout ? formatCurrency(bonus.payout) : ''}</span>
+        </td>
+        <td class="multiplier-col" data-multiplier="${bonus.multiplicador || ''}">
+            ${bonus.multiplicador ? formatMultiplier(bonus.multiplicador) : ''}
+        </td>
+        <td class="notes-col">${bonus.nota || ''}</td>
+        <td class="padrinho-col">${bonus.padrinho || ''}</td>
+        <td class="actions-col">
+            <button class="btn btn-sm action-btn ${isActive ? 'btn-success' : 'btn-outline-success'} play-bonus-btn"
+                data-bonus-id="${bonus.id}">
+                <i class="fas fa-play"></i>
+            </button>
+            <button class="btn btn-sm action-btn btn-primary edit-bonus-btn"
+                data-bonus-id="${bonus.id}">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-sm action-btn btn-danger delete-bonus-btn"
+                data-bonus-id="${bonus.id}">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    `;
 
-function activateNextBonus(hunt) {
-    const nextBonus = hunt.bonuses.find(b => b.payout === null);
-    if (nextBonus) {
-        activateBonus(nextBonus.id);
+    // Configurar visibilidade do input e texto de payout
+    const payoutCell = row.querySelector('.payout-cell');
+    const payoutInput = payoutCell.querySelector('.payout-input');
+    const payoutText = payoutCell.querySelector('.payout-text');
+
+    if (hunt.phase === 'opening' && isActive) {
+        payoutInput.style.display = 'inline-block';
+        payoutText.style.display = 'none';
+        payoutInput.disabled = false;
+        payoutInput.addEventListener('keydown', handlePayoutInput);
+    } else {
+        payoutInput.style.display = 'none';
+        payoutText.style.display = 'inline';
+        payoutInput.disabled = true;
     }
+
+    const playButton = row.querySelector('.play-bonus-btn');
+    if (playButton) {
+        playButton.classList.toggle('btn-outline-success', !isActive);
+        playButton.classList.toggle('btn-success', isActive);
+    }
+
+    row.classList.toggle('active-bonus', isActive);
+}
+
+function getCurrentPhase() {
+    const phaseSelect = document.getElementById('hunt-phase');
+    return phaseSelect ? phaseSelect.value : 'hunting';
 }
 
 function setupAddBonusForm() {
@@ -407,35 +971,36 @@ function handleAddBonus(e) {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-        .then(response => {
-            const contentType = response.headers.get("content-type");
-            if (contentType && contentType.indexOf("application/json") !== -1) {
-                return response.json().then(data => ({ data, isJson: true }));
-            } else {
-                return response.text().then(text => ({ data: text, isJson: false }));
-            }
-        })
-        .then(({ data, isJson }) => {
-            if (isJson) {
-                if (data.success) {
-                    appendNewBonusRow(data.newBonus);
-                    updateBonusTable(data.hunt);
-                    form.reset();
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Novo bônus adicionado:', data.newBonus);
+
+                // Atualizar o elemento hunt-data
+                const huntDataElement = document.getElementById('hunt-data');
+                if (huntDataElement) {
+                    huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
                 } else {
-                    throw new Error(data.error || 'Unknown error occurred');
+                    console.error("Elemento hunt-data não encontrado.");
                 }
+
+                // Atualizar a tabela de bônus
+                updateBonusTable(data.hunt);
+
+                // Atualizar estatísticas
+                updateStatistics(data.hunt);
+
+                form.reset();
             } else {
-                // Se a resposta não for JSON, recarregamos a página
-                document.open();
-                document.write(data);
-                document.close();
+                throw new Error(data.error || 'Erro desconhecido ocorreu');
             }
         })
         .catch(error => {
-            console.error('Error adding bonus:', error);
-            alert('Error adding bonus: ' + error.message);
+            console.error('Erro ao adicionar bônus:', error);
+            alert('Erro ao adicionar bônus: ' + error.message);
         });
 }
+
 
 function setupEditBonusButtons() {
 }
@@ -453,25 +1018,28 @@ function handleEditBonus(e) {
     };
 
     // Obter e definir o valor da aposta
-    const betValue = extractNumber(row.querySelector('td:nth-child(3)').textContent);
+    const betValue = extractNumber(row.querySelector('[data-bet]').textContent);
     document.getElementById('edit-bet').value = betValue;
 
     // Obter e definir o valor do payout
     const payoutCell = row.querySelector('.payout-cell');
-    const payoutValue = payoutCell.querySelector('input') ? 
+    const payoutValue = payoutCell.querySelector('input') ?
         payoutCell.querySelector('input').value :
         extractNumber(payoutCell.textContent);
     document.getElementById('edit-payout').value = payoutValue;
 
-    // Obter e definir o saldo restante
+    // Obter e definir o saldo restante (se aplicável)
     const remainingBalance = payoutCell.getAttribute('data-remaining-balance');
-    document.getElementById('edit-remaining-balance').value = remainingBalance || '';
+    const editRemainingBalance = document.getElementById('edit-remaining-balance');
+    if (editRemainingBalance) {
+        editRemainingBalance.value = remainingBalance || '';
+    }
 
     // Obter e definir a nota
-    document.getElementById('edit-note').value = row.querySelector('td:nth-child(6)').textContent.trim();
+    document.getElementById('edit-note').value = row.querySelector('td:nth-child(5)').textContent.trim();
 
     // Obter e definir o padrinho
-    document.getElementById('edit-padrinho').value = row.querySelector('td:nth-child(7)').textContent.trim();
+    document.getElementById('edit-padrinho').value = row.querySelector('td:nth-child(6)').textContent.trim();
 
     $('#editBonusModal').modal('show');
 }
@@ -496,26 +1064,26 @@ function deleteBonus(bonusId) {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            updateBonusTable(data.hunt);
-            updateStatistics(data.hunt);
-            removeBonusRow(bonusId);
-            console.log('Bonus deleted and UI updated.');
-        } else {
-            throw new Error(data.error || 'Unknown error occurred');
-        }
-    })
-    .catch(error => {
-        console.error('Error deleting bonus:', error);
-        alert('Error deleting bonus: ' + error.message);
-    });
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                updateBonusTable(data.hunt);
+                updateStatistics(data.hunt);
+                removeBonusRow(bonusId);
+                console.log('Bonus deleted and UI updated.');
+            } else {
+                throw new Error(data.error || 'Unknown error occurred');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting bonus:', error);
+            alert('Error deleting bonus: ' + error.message);
+        });
 }
 
 
@@ -534,58 +1102,73 @@ function setupSaveBonusEdit() {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    updateBonusTable(data.hunt);
-                    updateStatistics(data.hunt);
-                    $('#editBonusModal').modal('hide');
-                } else {
-                    throw new Error(data.error || 'Unknown error occurred');
-                }
-            })
-            .catch(error => {
-                console.error('Error updating bonus:', error);
-                alert('Error updating bonus: ' + error.message);
-            });
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        updateBonusTable(data.hunt);
+                        updateStatistics(data.hunt);
+                        $('#editBonusModal').modal('hide');
+                    } else {
+                        throw new Error(data.error || 'Unknown error occurred');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating bonus:', error);
+                    alert('Error updating bonus: ' + error.message);
+                });
         });
     }
 }
 
 function updateStatistics(hunt) {
-    document.getElementById('status').textContent = hunt.is_active ? 'Active' : 'Inactive';
-    document.getElementById('custo-inicial').textContent = formatCurrency(hunt.custo_inicial);
-    document.getElementById('investimento').textContent = formatCurrency(hunt.estatisticas.investimento);
-    document.getElementById('saldo-restante').textContent = formatCurrency(hunt.estatisticas.saldo_restante);
-    document.getElementById('total-ganho').textContent = formatCurrency(hunt.estatisticas.total_ganho);
-    document.getElementById('lucro-prejuizo').textContent = formatCurrency(hunt.estatisticas.lucro_prejuizo);
-    document.getElementById('num-bonus').textContent = hunt.estatisticas.num_bonus;
-    document.getElementById('num-bonus-abertos').textContent = hunt.estatisticas.num_bonus_abertos;
-    document.getElementById('media-aposta-inicial').textContent = formatCurrency(hunt.estatisticas.media_aposta_inicial);
-    document.getElementById('media-aposta').textContent = formatCurrency(hunt.estatisticas.media_aposta);
-    document.getElementById('break-even-x-inicial').textContent = formatMultiplier(hunt.estatisticas.break_even_x_inicial);
-    document.getElementById('break-even-euro-inicial').textContent = formatCurrency(hunt.estatisticas.break_even_euro_inicial);
-    document.getElementById('break-even-x').textContent = formatMultiplier(hunt.estatisticas.break_even_x);
-    document.getElementById('break-even-euro').textContent = formatCurrency(hunt.estatisticas.break_even_euro);
-    document.getElementById('avg-x').textContent = formatMultiplier(hunt.estatisticas.avg_x);
-    document.getElementById('avg-euro').textContent = formatCurrency(hunt.estatisticas.avg_euro);
+    const elementsToUpdate = {
+        'status': hunt.is_active ? 'Active' : 'Inactive',
+        'custo-inicial': formatCurrency(hunt.custo_inicial),
+        'investimento': formatCurrency(hunt.estatisticas.investimento),
+        'saldo-restante': formatCurrency(hunt.estatisticas.saldo_restante),
+        'total-ganho': formatCurrency(hunt.estatisticas.total_ganho),
+        'lucro-prejuizo': formatCurrency(hunt.estatisticas.lucro_prejuizo),
+        'num-bonus': hunt.estatisticas.num_bonus,
+        'num-bonus-abertos': hunt.estatisticas.num_bonus_abertos,
+        'media-aposta-inicial': formatCurrency(hunt.estatisticas.media_aposta_inicial),
+        'media-aposta': formatCurrency(hunt.estatisticas.media_aposta),
+        'break-even-x-inicial': formatMultiplier(hunt.estatisticas.break_even_x_inicial),
+        'break-even-euro-inicial': formatCurrency(hunt.estatisticas.break_even_euro_inicial),
+        'break-even-x': formatMultiplier(hunt.estatisticas.break_even_x),
+        'break-even-euro': formatCurrency(hunt.estatisticas.break_even_euro),
+        'avg-x': formatMultiplier(hunt.estatisticas.avg_x),
+        'avg-euro': formatCurrency(hunt.estatisticas.avg_euro)
+    };
+
+    // Iterar sobre os elementos a serem atualizados e verificar se eles existem
+    for (const [id, value] of Object.entries(elementsToUpdate)) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
+        } else {
+            console.warn(`Elemento com ID "${id}" não foi encontrado no DOM.`);
+        }
+    }
 
     updateBestWorstSlots(hunt.estatisticas);
 }
 
-// Função de formatação de moeda atualizada
 function formatCurrency(value) {
-    return value != null ? new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value) : '';
+    return new Intl.NumberFormat('pt-PT', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(value);
 }
 
-// Função de formatação de multiplicador atualizada
 function formatMultiplier(value) {
-    return value != null ? value.toFixed(0) + 'x' : '';
+    return `${value.toFixed(2)}x`;
 }
 
 // Função de formatação de número atualizada
@@ -594,62 +1177,50 @@ function formatNumber(value, decimals = 1) {
 }
 
 function updateBestWorstSlots(estatisticas) {
-    document.getElementById('best-slot-x').textContent = estatisticas.best_bonus_x ? 
+    document.getElementById('best-slot-x').textContent = estatisticas.best_bonus_x ?
         `${estatisticas.best_bonus_x.slot.name} - ${formatMultiplier(estatisticas.best_bonus_x.multiplicador)}` : 'N/A';
-    document.getElementById('best-slot-euro').textContent = estatisticas.best_bonus_euro ? 
+    document.getElementById('best-slot-euro').textContent = estatisticas.best_bonus_euro ?
         `${estatisticas.best_bonus_euro.slot.name} - ${formatCurrency(estatisticas.best_bonus_euro.payout)}` : 'N/A';
-    document.getElementById('worst-slot-x').textContent = estatisticas.worst_bonus_x ? 
+    document.getElementById('worst-slot-x').textContent = estatisticas.worst_bonus_x ?
         `${estatisticas.worst_bonus_x.slot.name} - ${formatMultiplier(estatisticas.worst_bonus_x.multiplicador)}` : 'N/A';
-    document.getElementById('worst-slot-euro').textContent = estatisticas.worst_bonus_euro ? 
+    document.getElementById('worst-slot-euro').textContent = estatisticas.worst_bonus_euro ?
         `${estatisticas.worst_bonus_euro.slot.name} - ${formatCurrency(estatisticas.worst_bonus_euro.payout)}` : 'N/A';
 }
 
-// Função appendNewBonusRow atualizada
-function appendNewBonusRow(bonus) {
-    const bonusTable = document.querySelector('#bonus-table tbody');
-    if (bonusTable) {
-        const newRow = document.createElement('tr');
-        newRow.dataset.bonusId = bonus.id;
-        
-        // Define a classe da linha para a formatação
-        const rowIndex = bonusTable.children.length + 1;
-        newRow.className = rowIndex % 2 === 0 ? '' : 'active-bonus';
-
-        newRow.innerHTML = `
-            <td>${rowIndex}</td>
-            <td>
-                <div class="slot-info">
-                    <img src="${bonus.slot.image}" alt="${bonus.slot.name}" class="slot-img" />
-                    <div class="slot-text">
-                        <span class="slot-name">${bonus.slot.name}</span>
-                        <small class="slot-provider"><i>${bonus.slot.provider}</i></small>
-                    </div>
-                </div>
-            </td>
-            <td>${formatCurrency(bonus.aposta)}</td>
-            <td class="payout-cell">${bonus.payout !== null ? formatCurrency(bonus.payout) : ''}</td>
-            <td>${bonus.payout !== null ? formatMultiplier(bonus.multiplicador) : ''}</td>
-            <td>${bonus.nota || ''}</td>
-            <td>${bonus.padrinho || ''}</td>
-            <td>
-                <button class="btn btn-sm action-btn btn-outline-success play-bonus-btn" data-bonus-id="${bonus.id}">
-                    <i class="fas fa-play"></i>
-                </button>
-                <button class="btn btn-sm action-btn btn-primary edit-bonus-btn" data-bonus-id="${bonus.id}">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn btn-sm action-btn btn-danger delete-bonus-btn" data-bonus-id="${bonus.id}">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        `;
-        
-        // Adiciona a nova linha ao final da tabela
-        bonusTable.appendChild(newRow);
-
-        // Atualiza as classes de estilo para todas as linhas
-        updateTableRowStyles();
+function appendNewBonusRow(newBonus, hunt) {
+    const tbody = document.getElementById('bonus-tbody');
+    if (!tbody) {
+        console.error('Tabela de bônus não encontrada');
+        return;
     }
+
+    const row = document.createElement('tr');
+    row.dataset.bonusId = newBonus.id;
+    updateBonusRow(row, newBonus, hunt, false);  // false porque o novo bônus não deve estar ativo
+
+    // Inserir a nova linha no topo da tabela
+    tbody.insertBefore(row, tbody.firstChild);
+
+    console.log(`Nova linha de bônus adicionada: ${newBonus.id}`);
+
+    // Destaque temporário para a nova linha
+    row.style.backgroundColor = '#ffff99';
+    setTimeout(() => {
+        row.style.backgroundColor = '';
+    }, 2000);
+}
+
+function getCurrentHuntData() {
+    const huntDataElement = document.getElementById('hunt-data');
+    if (huntDataElement && huntDataElement.dataset.hunt) {
+        try {
+            return JSON.parse(huntDataElement.dataset.hunt);
+        } catch (error) {
+            console.error('Erro ao analisar os dados do hunt JSON:', error);
+        }
+    }
+    console.warn('hunt-data não está disponível ou está vazio.');
+    return null;
 }
 
 function updateTableRowStyles() {
@@ -680,7 +1251,7 @@ function createSuggestionItem(slot) {
             </div>
         </div>
     `;
-    suggestionItem.addEventListener('click', function(e) {
+    suggestionItem.addEventListener('click', function (e) {
         e.preventDefault();
         const slotSearch = document.getElementById('slotSearch');
         const slotIdInput = document.getElementById('slotId');
@@ -780,7 +1351,7 @@ function setupSlotSearch() {
         // Add event listener for the new slot button
         const addNewSlotBtn = document.getElementById('addNewSlotBtn');
         if (addNewSlotBtn) {
-            addNewSlotBtn.addEventListener('click', function() {
+            addNewSlotBtn.addEventListener('click', function () {
                 $('#createSlotModal').modal('show');
             });
         }
@@ -794,10 +1365,24 @@ function setupSlotSearch() {
     }
 }
 
+function updateAddBonusForm(hunt) {
+    if (!hunt || typeof hunt !== 'object' || !hunt.phase) {
+        console.error('Invalid hunt object passed to updateAddBonusForm');
+        return;
+    }
+
+    const addBonusForm = document.getElementById('add-bonus-form');
+    if (addBonusForm) {
+        addBonusForm.style.display = hunt.phase === 'hunting' ? 'block' : 'none';
+    } else {
+        console.error('Add bonus form not found');
+    }
+}
+
 function setupAddNewSlotButton() {
     const addNewSlotBtn = document.getElementById('addNewSlotBtn');
     if (addNewSlotBtn) {
-        addNewSlotBtn.addEventListener('click', function() {
+        addNewSlotBtn.addEventListener('click', function () {
             fetch('/slots/create_form')
                 .then(response => response.text())
                 .then(html => {
@@ -817,7 +1402,7 @@ function setupAddNewSlotButton() {
 function setupSlotForm() {
     const slotForm = document.getElementById('slotForm');
     if (slotForm) {
-        slotForm.addEventListener('submit', function(e) {
+        slotForm.addEventListener('submit', function (e) {
             e.preventDefault();
             const formData = new FormData(this);
             const url = this.dataset.id ? `/slots/${this.dataset.id}` : '/slots/';
@@ -829,20 +1414,20 @@ function setupSlotForm() {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    $('#createSlotModal').modal('hide');
-                    updateSlotSearch(data.slot);
-                    alert(this.dataset.id ? 'Slot updated successfully!' : 'Slot created successfully!');
-                } else {
-                    throw new Error(data.error || 'Unknown error occurred');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert(`Error ${this.dataset.id ? 'updating' : 'creating'} slot: ${error.message}`);
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        $('#createSlotModal').modal('hide');
+                        updateSlotSearch(data.slot);
+                        alert(this.dataset.id ? 'Slot updated successfully!' : 'Slot created successfully!');
+                    } else {
+                        throw new Error(data.error || 'Unknown error occurred');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert(`Error ${this.dataset.id ? 'updating' : 'creating'} slot: ${error.message}`);
+                });
         });
     }
 }
@@ -862,7 +1447,7 @@ function updateSlotSearch(newSlot, clearExisting = false, showSuggestions = true
         }
 
         const suggestionItem = createSuggestionItem(newSlot);
-        
+
         if (clearExisting) {
             suggestionsBox.appendChild(suggestionItem);
         } else {
