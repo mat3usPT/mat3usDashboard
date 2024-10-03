@@ -6,6 +6,7 @@ const ACTIVE_CARD_EXTRA_SPACE = 10; // Extra space on each side of the active ca
 let currentHuntData;
 let activeIndex = 0;
 let socket;
+let positionCardsTimeout;
 
 document.addEventListener('DOMContentLoaded', initialize);
 
@@ -18,11 +19,20 @@ function initializeSocket() {
     try {
         socket = io('/widgets');
         socket.on('connect', () => console.log('Connected to WebSocket'));
+        socket.on('bonus_activated', (data) => {
+            console.log('Bonus activated:', data);
+            if (currentHuntData && currentHuntData.id === data.huntId) {
+                const newActiveIndex = data.bonuses.findIndex(bonus => bonus.id === data.activeBonusId);
+                if (newActiveIndex !== -1 && newActiveIndex !== activeIndex) {
+                    activeIndex = newActiveIndex;
+                    positionCardsForOpening(data.bonuses.length);
+                }
+            }
+        });
         socket.on('bonus_hunt_update', (data) => {
             console.log('Received bonus hunt update:', data);
             if (data && data.data) {
-                console.log('Calling updateOverlay from WebSocket event');
-                updateOverlay(data.data);
+                updateOverlay(data.data, false);
             }
         });
         socket.on('disconnect', () => console.log('Disconnected from WebSocket'));
@@ -44,10 +54,15 @@ function fetchCurrentHunt() {
         .catch(error => console.error('Error fetching overlay data:', error));
 }
 
-function updateOverlay(huntData) {
-    console.log('Updating overlay with hunt data:', huntData);
-    console.log('updateOverlay called with:', huntData);
+function debouncedPositionCards(totalBonuses) {
+    clearTimeout(positionCardsTimeout);
+    positionCardsTimeout = setTimeout(() => {
+        positionCardsForOpening(totalBonuses);
+    }, 50);
+}
 
+function updateOverlay(huntData, updateCards = true) {
+    console.log('Updating overlay with hunt data:', huntData);
     currentHuntData = huntData;
 
     if (!huntData || !huntData.estatisticas || !huntData.bonuses) {
@@ -62,18 +77,53 @@ function updateOverlay(huntData) {
     updateStatistics(huntData.estatisticas, huntData.phase);
     updateProgressBar(huntData.estatisticas);
     updateBestWorstWinContainer(huntData);
-    updateBonusCards(huntData);
 
-    // Reset activeIndex when switching to opening phase
+    if (updateCards) {
+        updateBonusCards(huntData);
+    }
+
     if (huntData.phase === 'opening') {
-        activeIndex = huntData.bonuses.findIndex(bonus => bonus.id === huntData.bonus_atual_id);
-        console.log(`Reset activeIndex to: ${activeIndex}`);
-        positionCardsForOpening(huntData.bonuses.length);
+        const newActiveIndex = huntData.bonuses.findIndex(bonus => bonus.id === huntData.bonus_atual_id);
+        if (newActiveIndex !== -1 && newActiveIndex !== activeIndex) {
+            activeIndex = newActiveIndex;
+            console.log(`Updated activeIndex to: ${activeIndex}`);
+            positionCardsForOpening(huntData.bonuses.length);
+        }
     }
 }
 
 function updateHuntInfo(huntData) {
-    document.getElementById('hunt-name').textContent = huntData.nome.toUpperCase() || 'N/A';
+    const huntNameEl = document.getElementById('hunt-name');
+    huntNameEl.textContent = huntData.nome.toUpperCase() || 'N/A';
+    
+    let huntStateEl = document.querySelector('.hunt-state');
+    if (!huntStateEl) {
+        huntStateEl = document.createElement('div');
+        huntStateEl.className = 'hunt-state';
+        huntNameEl.parentElement.appendChild(huntStateEl);
+    }
+    
+    let stateIcon, stateColor;
+    switch(huntData.phase) {
+        case 'hunting':
+            stateIcon = 'fa-search';
+            stateColor = 'gold';
+            break;
+        case 'opening':
+            stateIcon = 'fa-box-open';
+            stateColor = 'lightgray';
+            break;
+        case 'ended':
+            stateIcon = 'fa-flag-checkered';
+            stateColor = 'green';
+            break;
+    }
+    
+    huntStateEl.innerHTML = `
+        <i class="fas ${stateIcon}"></i>
+        <span>${huntData.phase.toUpperCase()}</span>
+    `;
+    huntStateEl.style.backgroundColor = stateColor;
 }
 
 function updateStatistics(stats, phase) {
@@ -81,6 +131,12 @@ function updateStatistics(stats, phase) {
         hunting: ['START', 'INVESTMENT', 'B/E X', 'AVG BET', 'BONUSES'],
         opening: ['TARGET', 'TOTAL', 'INITIAL BE X', 'OPEN BE X', 'AVG X'],
         ended: ['INITIAL BALANCE', 'TOTAL WON', 'PROFIT', 'ROI']
+    };
+
+    const statIcons = {
+        hunting: ['fa-play', 'fa-coins', 'fa-balance-scale', 'fa-calculator', 'fa-gift'],
+        opening: ['fa-bullseye', 'fa-money-bill-wave', 'fa-balance-scale', 'fa-balance-scale-right', 'fa-chart-line'],
+        ended: ['fa-wallet', 'fa-trophy', 'fa-chart-line', 'fa-percentage']
     };
 
     const statValues = {
@@ -95,7 +151,7 @@ function updateStatistics(stats, phase) {
             formatCurrency(stats.investimento),
             formatCurrency(stats.total_ganho),
             formatMultiplier(stats.break_even_x_inicial),
-            formatMultiplier(stats.break_even_x),
+            stats.break_even_x < 0 ? '<span class="profit"><i class="fas fa-check-circle"></i> Profit</span>' : formatMultiplier(stats.break_even_x),
             formatMultiplier(stats.avg_x),
         ],
         ended: [
@@ -114,8 +170,13 @@ function updateStatistics(stats, phase) {
         if (statItem) {
             const label = labels[i - 1];
             const value = values[i - 1];
+            const icon = statIcons[phase][i - 1];
             if (label && value) {
-                statItem.innerHTML = `<span class="stat-label">${label}</span> <span class="stat-value">${value}</span>`;
+                statItem.innerHTML = `
+                    <i class="fas ${icon}"></i>
+                    <span class="stat-label">${label}</span>
+                    <span class="stat-value">${value}</span>
+                `;
                 statItem.style.display = 'flex';
             } else {
                 statItem.style.display = 'none';
@@ -133,15 +194,22 @@ function updateProgressBar(stats) {
     const progressContainer = document.querySelector('.progress-container');
     const progressFill = document.getElementById('progress-fill');
     const bonusesCount = document.getElementById('bonuses-count');
+    const bonusesLabel = document.querySelector('.bonuses-label');
 
     if (currentHuntData.phase === 'opening') {
         progressContainer.style.display = 'flex';
         const progressPercentage = (stats.num_bonus_abertos / stats.num_bonus) * 100;
         progressFill.style.width = `${progressPercentage}%`;
         bonusesCount.textContent = `${stats.num_bonus_abertos} / ${stats.num_bonus}`;
+        
+        // Adicionar ícone ao rótulo de bônus
+        bonusesLabel.innerHTML = '<i class="fas fa-gift"></i> BONUSES';
     } else {
         progressContainer.style.display = 'none';
         bonusesCount.textContent = `${stats.num_bonus}`;
+        
+        // Adicionar ícone ao rótulo de bônus
+        bonusesLabel.innerHTML = '<i class="fas fa-gift"></i> BONUSES';
     }
 }
 
@@ -200,6 +268,7 @@ function createBonusCard(bonus, isWinCard = false, winType = '') {
             ${bonus.nota ? `
                 <span class="slot-note">
                     ${noteIcon ? `<i class="${noteIcon}"></i>` : ''}
+                    ${bonus.nota}
                 </span>
             ` : ''}
         </div>
@@ -213,7 +282,7 @@ function positionCardsForOpening(totalBonuses) {
     const container = document.querySelector('.bonus-cards-wrapper');
     const cards = Array.from(container.children);
 
-    let startIndex = Math.max(0, Math.min(activeIndex - 3, totalBonuses - VISIBLE_CARDS));
+    let startIndex = Math.max(0, Math.min(activeIndex - Math.floor(VISIBLE_CARDS / 2), totalBonuses - VISIBLE_CARDS));
     console.log(`Calculated start index: ${startIndex}`);
 
     const totalWidth = (totalBonuses * CARD_WIDTH) + CONTAINER_LEFT_PADDING + (2 * ACTIVE_CARD_EXTRA_SPACE);
@@ -221,41 +290,42 @@ function positionCardsForOpening(totalBonuses) {
     container.style.paddingLeft = `${CONTAINER_LEFT_PADDING}px`;
 
     cards.forEach((card, index) => {
-        card.classList.remove('active', 'visible', 'entering', 'exiting');
-
         let xPosition = (index * CARD_WIDTH) + CONTAINER_LEFT_PADDING;
         if (index > activeIndex) xPosition += ACTIVE_CARD_EXTRA_SPACE;
         if (index >= activeIndex) xPosition += ACTIVE_CARD_EXTRA_SPACE;
 
         card.style.left = `${xPosition}px`;
-
-        const isVisible = index >= startIndex && index < startIndex + VISIBLE_CARDS;
-
-        if (isVisible) {
-            card.classList.add('visible');
-        } else if (index < startIndex) {
-            card.classList.add('exiting');
-        } else {
-            card.classList.add('entering');
-        }
-
         card.style.zIndex = VISIBLE_CARDS - Math.abs(index - activeIndex);
 
-        console.log(`Card ${index}: Position ${card.style.left}, Visible: ${isVisible}, Class: ${card.className}`);
+        const isVisible = index >= startIndex && index < startIndex + VISIBLE_CARDS;
+        const newClass = isVisible ? 'visible' : (index < startIndex ? 'exiting' : 'entering');
+        
+        if (!card.classList.contains(newClass)) {
+            card.classList.remove('visible', 'entering', 'exiting');
+            card.classList.add(newClass);
+        }
+
+        if (index === activeIndex) {
+            card.classList.add('active');
+        } else {
+            card.classList.remove('active');
+        }
+
+        console.log(`Card ${index}: Position ${card.style.left}, Class: ${card.className}, zIndex: ${card.style.zIndex}`);
     });
 
-    if (cards[activeIndex]) {
-        cards[activeIndex].classList.add('active');
-        console.log(`Active card set: ${activeIndex}`);
-    }
-
-    // Ajustar a posição do container
     const containerOffset = (startIndex * CARD_WIDTH) + (activeIndex >= startIndex ? ACTIVE_CARD_EXTRA_SPACE : 0);
     container.style.transform = `translateX(-${containerOffset}px)`;
 
+    const visibleCards = cards.filter(card => 
+        card.classList.contains('visible') || 
+        card.classList.contains('entering') || 
+        card.classList.contains('exiting')
+    ).length;
+
     console.log(`Container offset: -${containerOffset}px`);
     console.log(`Container width: ${container.style.width}, Padding left: ${container.style.paddingLeft}`);
-    console.log(`Visible cards: ${cards.filter(card => card.classList.contains('visible')).length}`);
+    console.log(`Visible cards: ${visibleCards}`);
     console.log(`Start index: ${startIndex}`);
     console.log(`Container offset: ${containerOffset}`);
 }
@@ -292,7 +362,7 @@ function moveToNextBonus() {
     if (activeIndex < totalBonuses - 1) {
         activeIndex++;
         console.log(`Moving to next bonus. New active index: ${activeIndex}`);
-        positionCardsForOpening(totalBonuses);
+        debouncedPositionCards(totalBonuses);
     } else {
         console.log('Already at the last bonus');
     }
@@ -302,11 +372,10 @@ function moveToPreviousBonus() {
     console.log('moveToPreviousBonus called');
     if (currentHuntData.phase !== 'opening') return;
 
-    const totalBonuses = currentHuntData.bonuses.length;
     if (activeIndex > 0) {
         activeIndex--;
         console.log(`Moving to previous bonus. New active index: ${activeIndex}`);
-        positionCardsForOpening(totalBonuses);
+        debouncedPositionCards(currentHuntData.bonuses.length);
     } else {
         console.log('Already at the first bonus');
     }

@@ -4,7 +4,7 @@
     --white: #ffffff;
     --gold: #ffd700;
     --gray: #495474;
-    --grayl: #8494c4;
+    --grayl: #7c98a8;
     --red: #ff4136;
     --semi-transparent-dark: rgba(2, 11, 34, 0.8);
 }
@@ -44,6 +44,7 @@ body {
     font-weight: 700;
     font-size: 16px;
     margin-right: 20px;
+    margin-left: 2px;
 }
 
 .hunt-stats {
@@ -53,10 +54,34 @@ body {
     align-items: center;
 }
 
+.hunt-state {
+    display: inline-flex;
+    align-items: center;
+    padding: 0px 10px;
+    border-radius: 5px;
+    margin-left: 10px;
+    margin-right: 6px;
+    font-weight: bold;
+}
+
+.hunt-state i {
+    margin-right: 5px;
+}
+
 .stat-item {
     display: flex;
     align-items: center;
     margin-right: 15px;
+}
+
+.stat-item i {
+    margin-right: 5px;
+    color: var(--grayl);
+}
+
+.profit {
+    color: #00ff8b;
+    font-weight: bold;
 }
 
 .vertical-divider {
@@ -67,10 +92,10 @@ body {
 }
 
 .vertical-dividerB {
-    width: 1px;
-    height: 130px;
+    width: 2px;
+    height: 100px;
     background-color: var(--gray);
-    margin: 15px 15px;
+    margin: 30px 15px;
 }
 
 .stat-label {
@@ -97,6 +122,12 @@ body {
     font-size: 14px;
     font-weight: 700;
     margin-right: 10px;
+}
+
+.bonuses-label i {
+    margin-right: 5px;
+    color: var(--grayl);
+
 }
 
 .progress-bar {
@@ -274,7 +305,7 @@ body {
     border-radius: 5px;
     background-color: var(--blue);
     position: absolute;
-    transition: opacity 0.2s ease-in-out, transform 0.6s ease-in-out, visibility 0.2s ease-in-out;
+    transition: opacity 0.2s ease-in transform 0.6s ease-in, visibility 0.2s ease-in-out;
     will-change: transform, opacity, visibility;
     overflow: hidden;
     border: 2px solid var(--grayl);
@@ -435,7 +466,7 @@ body {
 }
 
 .bonus-hunt-overlay.opening-mode .slot-card {
-    transition: opacity 0.6s ease-in-out, transform 0.6s ease-in-out;
+    transition: opacity 0.3s ease-in, transform 0.6s ease-in;
 }
 
 .bonus-hunt-overlay.opening-mode .slot-card.active { 
