@@ -327,11 +327,14 @@ def activate_bonus(bonus_id):
         db.session.commit()
         emit_bonus_hunt_update()
 
-        hunt.estatisticas = hunt.calcular_estatisticas()
         return jsonify({'success': True, 'hunt': hunt.to_dict()})
     except SQLAlchemyError as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+        logger.error(f"Database error in activate_bonus: {str(e)}")
+        return jsonify({'success': False, 'error': 'Database error occurred'}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error in activate_bonus: {str(e)}")
+        return jsonify({'success': False, 'error': 'An unexpected error occurred'}), 500
 
 @bonus_hunts.route('/deactivate_bonus/<int:bonus_id>', methods=['POST'])
 def deactivate_bonus(bonus_id):
@@ -369,17 +372,27 @@ def update_hunt_phase(id):
             return jsonify({'success': False, 'error': 'Invalid phase'}), 400
         
         hunt.phase = new_phase
-        if new_phase == 'opening' and not hunt.bonus_atual_id:
-            first_bonus = Bonus.query.filter_by(hunt_id=hunt.id).order_by(Bonus.order).first()
-            if first_bonus:
-                hunt.bonus_atual_id = first_bonus.id
+        if new_phase == 'hunting':
+            # Deactivate all bonuses
+            hunt.bonus_atual_id = None
+        elif new_phase == 'opening':
+            # Activate the first unpaid bonus
+            first_unpaid_bonus = Bonus.query.filter_by(hunt_id=hunt.id, payout=None).order_by(Bonus.order).first()
+            if first_unpaid_bonus:
+                hunt.bonus_atual_id = first_unpaid_bonus.id
+            else:
+                # If all bonuses are paid, activate the first one
+                first_bonus = Bonus.query.filter_by(hunt_id=hunt.id).order_by(Bonus.order).first()
+                if first_bonus:
+                    hunt.bonus_atual_id = first_bonus.id
         elif new_phase == 'ended':
             hunt.is_active = False
         
         db.session.commit()
+        emit_bonus_hunt_update()  # Emit update event
         return jsonify({
             'success': True,
-            'hunt': hunt.to_dict()  # Certifique-se de que este método existe e retorna todos os dados necessários
+            'hunt': hunt.to_dict()
         })
     
     except SQLAlchemyError as e:

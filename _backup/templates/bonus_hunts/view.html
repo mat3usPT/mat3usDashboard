@@ -16,6 +16,11 @@
             {% else %}
             <button type="button" class="btn btn-success mr-2" disabled>Active Hunt</button>
             {% endif %}
+            <select id="hunt-phase" class="form-control" data-hunt-id="{{ hunt.id }}">
+                <option value="hunting" {% if hunt.phase == 'hunting' %}selected{% endif %}>Hunting</option>
+                <option value="opening" {% if hunt.phase == 'opening' %}selected{% endif %}>Opening</option>
+                <option value="ended" {% if hunt.phase == 'ended' %}selected{% endif %}>Ended</option>
+            </select>
         </div>
     </div>
     
@@ -106,6 +111,7 @@
         </div>
     </div>
 
+    {% if hunt.phase == 'hunting' %}
     <div class="mb-4">
         <h2 id="add-new-bonus-title">Add New Bonus</h2>
         <form id="add-bonus-form" action="{{ url_for('bonus_hunts.add_bonus', id=hunt.id) }}" method="POST">
@@ -143,6 +149,7 @@
             </div>
         </form>
     </div>
+    {% endif %}
 
     <h2>Bonuses</h2>
     <div class="table-responsive">
@@ -174,7 +181,7 @@
                     </td>
                     <td>€{{ "%.2f"|format(bonus.aposta) }}</td>
                     <td class="payout-cell">
-                        {% if bonus.id == hunt.bonus_atual_id %}
+                        {% if hunt.phase == 'opening' and bonus.id == hunt.bonus_atual_id %}
                             <input type="number" step="0.01" name="payout" value="{{ "%.2f"|format(bonus.payout) if bonus.payout else '' }}" class="form-control payout-input" data-bonus-id="{{ bonus.id }}">
                         {% else %}
                             {{ "%.2f"|format(bonus.payout) if bonus.payout else 'N/A' }}
@@ -184,9 +191,11 @@
                     <td>{{ bonus.nota }}</td>
                     <td>{{ bonus.padrinho or 'N/A' }}</td>
                     <td>
+                        {% if hunt.phase == 'opening' %}
                         <button class="btn btn-sm btn-primary play-bonus-btn" data-bonus-id="{{ bonus.id }}">
                             <i class="fas fa-play"></i>
                         </button>
+                        {% endif %}
                         <button class="btn btn-sm btn-secondary edit-bonus-btn" data-bonus-id="{{ bonus.id }}">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -242,4 +251,5 @@
         </div>
     </div>
 </div>
+<div id="hunt-data" style="display: none;" data-hunt="{{ hunt | tojson | safe }}"></div>
 {% endblock %}

@@ -358,51 +358,33 @@ function setupHuntPhaseSelect() {
             },
             body: JSON.stringify({ phase: newPhase })
         })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    console.log('Hunt phase updated successfully');
-
-                    // Atualizar o elemento hunt-data com os novos dados
-                    const huntDataElement = document.getElementById('hunt-data');
-                    if (huntDataElement) {
-                        huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
-                    }
-
-                    // Passar o objeto hunt completo para updateUIForPhase
-                    updateUIForPhase(data.hunt);
-
-                    // Atualizar o formulário de adição de bônus
-                    updateAddBonusForm(data.hunt);
-
-                    // Atualizar a tabela de bônus e estatísticas
-                    updateBonusTable(data.hunt);
-                    updateStatistics(data.hunt);
-                } else {
-                    console.error('Failed to update hunt phase:', data.error);
-                    alert(`Failed to update hunt phase: ${data.error}`);
-                }
-            })
-            .catch(error => {
-                console.error('Error updating hunt phase:', error);
-                alert('An error occurred while updating the hunt phase. Please try again.');
-            });
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                console.log('Hunt phase updated successfully');
+                updateUIForPhase(data.hunt);
+                updateAddBonusForm(data.hunt);
+                updateBonusTable(data.hunt);
+                updateStatistics(data.hunt);
+            } else {
+                console.error('Failed to update hunt phase:', data.error);
+                alert(`Failed to update hunt phase: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating hunt phase:', error);
+            alert('An error occurred while updating the hunt phase. Please try again.');
+        });
     });
 }
 
 function updateUIForPhase(hunt) {
-    console.log('Received hunt data in updateUIForPhase:', hunt);
-
-    if (!hunt || typeof hunt !== 'object' || !hunt.phase) {
-        console.error('Invalid hunt object passed to updateUIForPhase');
-        return;
-    }
-
+    console.log('Updating UI for phase:', hunt.phase);
     const bonusTable = document.getElementById('bonus-table');
     if (!bonusTable) {
         console.error('Bonus table not found');
@@ -431,11 +413,11 @@ function updateUIForPhase(hunt) {
                     payoutText.style.display = 'inline';
                 }
             });
-            // Desativar todos os bônus
+            // Deactivate all bonuses
             bonusRows.forEach(row => {
                 row.classList.remove('active-bonus');
             });
-            // Resetar o bônus atual
+            // Reset the active bonus
             hunt.bonus_atual_id = null;
             fetch(`/bonus-hunts/${hunt.id}/reset-active-bonus`, {
                 method: 'POST',
@@ -444,11 +426,11 @@ function updateUIForPhase(hunt) {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             }).then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        console.log('Active bonus reset successfully');
-                    }
-                });
+              .then(data => {
+                  if (data.success) {
+                      console.log('Active bonus reset successfully');
+                  }
+              });
             setupDraggableRows();
             break;
 
@@ -465,11 +447,21 @@ function updateUIForPhase(hunt) {
                     payoutText.style.display = 'none';
                 }
             });
-            // Ativar o primeiro bônus
-            const firstBonusRow = bonusRows[0];
-            if (firstBonusRow) {
-                const firstBonusId = firstBonusRow.dataset.bonusId;
-                activateBonus(firstBonusId);
+            // Activate the first unpaid bonus
+            const firstUnpaidBonus = Array.from(bonusRows).find(row => {
+                const payoutCell = row.querySelector('.payout-cell');
+                return payoutCell && !payoutCell.textContent.trim();
+            });
+            if (firstUnpaidBonus) {
+                const firstUnpaidBonusId = firstUnpaidBonus.dataset.bonusId;
+                activateBonus(firstUnpaidBonusId);
+            } else {
+                // If all bonuses are paid, activate the first one
+                const firstBonusRow = bonusRows[0];
+                if (firstBonusRow) {
+                    const firstBonusId = firstBonusRow.dataset.bonusId;
+                    activateBonus(firstBonusId);
+                }
             }
             if (typeof Sortable !== 'undefined') {
                 const tbody = document.getElementById('bonus-tbody');
@@ -493,7 +485,7 @@ function updateUIForPhase(hunt) {
                     payoutText.style.display = 'inline';
                 }
             });
-            // Desativar todos os bônus
+            // Deactivate all bonuses
             bonusRows.forEach(row => {
                 row.classList.remove('active-bonus');
             });
@@ -510,7 +502,7 @@ function updateUIForPhase(hunt) {
             console.error('Unknown hunt phase:', hunt.phase);
     }
 
-    // Atualizar o hunt-data
+    // Update the hunt-data
     const huntDataElement = document.getElementById('hunt-data');
     if (huntDataElement) {
         huntDataElement.dataset.hunt = JSON.stringify(hunt);
@@ -574,7 +566,7 @@ function activateNextBonus() {
 }
 
 function activateBonus(bonusId) {
-    console.log(`Ativando bônus: ${bonusId}`);
+    console.log(`Activating bonus: ${bonusId}`);
     fetch(`/bonus-hunts/activate_bonus/${bonusId}`, {
         method: 'POST',
         headers: {
@@ -582,25 +574,25 @@ function activateBonus(bonusId) {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log(`Bônus ${bonusId} ativado com sucesso`);
-                const huntDataElement = document.getElementById('hunt-data');
-                if (huntDataElement) {
-                    huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
-                }
-
-                updateBonusTable(data.hunt);
-                focusPayoutInput(bonusId);
-            } else {
-                throw new Error(data.error || 'Falha ao ativar o bônus');
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log(`Bonus ${bonusId} activated successfully`);
+            const huntDataElement = document.getElementById('hunt-data');
+            if (huntDataElement) {
+                huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
             }
-        })
-        .catch(error => {
-            console.error('Erro ao ativar o bônus:', error);
-            alert('Falha ao ativar o bônus: ' + error.message);
-        });
+
+            updateBonusTable(data.hunt);
+            focusPayoutInput(bonusId);
+        } else {
+            throw new Error(data.error || 'Failed to activate the bonus');
+        }
+    })
+    .catch(error => {
+        console.error('Error activating the bonus:', error);
+        alert('Failed to activate the bonus: ' + error.message);
+    });
 }
 
 function deactivateBonus(bonusId) {
@@ -957,6 +949,27 @@ function setupAddBonusForm() {
     function resetInputField(input) {
         input.value = ''; // Reseta o valor do campo
     }
+}
+
+function resetActiveBonus(huntId) {
+    fetch(`/bonus-hunts/${huntId}/reset-active-bonus`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Active bonus reset successfully');
+        } else {
+            console.error('Failed to reset active bonus:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error resetting active bonus:', error);
+    });
 }
 
 function handleAddBonus(e) {

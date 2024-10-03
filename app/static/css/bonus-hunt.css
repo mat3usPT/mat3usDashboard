@@ -28,7 +28,8 @@
 
 /* Active bonus styling */
 .active-bonus {
-    background-color: #d4edda !important;
+    background-color: #e8f5e9 !important;
+    transition: background-color 0.3s ease;
 }
 
 .drag-handle {
@@ -176,12 +177,22 @@
 }
 
 .suggestion-item {
-    padding: 0.5rem;
-    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 5px;
+    transition: background-color 0.2s ease;
 }
 
 .suggestion-item:hover {
-    background-color: #f8f9fa;
+    background-color: #f0f0f0;
+}
+
+.suggestion-item img {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    margin-right: 10px;
+    border-radius: 4px;
 }
 
 /* Bonus table styles */

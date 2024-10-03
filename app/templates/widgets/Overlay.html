@@ -6,45 +6,41 @@
     <title>Bonus Hunt Overlay</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/o-bonushunt.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Saira+Semi+Condensed:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 </head>
 <body>
     <div class="bonus-hunt-overlay">
-        <div class="hunt-name">
-            <h1 id="hunt-name"></h1>
-        </div>
-        <div class="hunt-info">
+        <div class="top-bar">
+            <div class="hunt-name" id="hunt-name"></div>
             <div class="hunt-stats">
-                <div class="stat-item">
-                    <span class="stat-label" id="stat-label-1"></span>
-                    <span class="stat-value" id="stat-value-1"></span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label" id="stat-label-2"></span>
-                    <span class="stat-value" id="stat-value-2"></span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label" id="stat-label-3"></span>
-                    <span class="stat-value" id="stat-value-3"></span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label" id="stat-label-4"></span>
-                    <span class="stat-value" id="stat-value-4"></span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label" id="stat-label-5"></span>
-                    <span class="stat-value" id="stat-value-5"></span>
-                </div>
+                <div id="stat-item-1" class="stat-item"></div>
+                <div class="vertical-divider"></div>
+                <div id="stat-item-2" class="stat-item"></div>
+                <div class="vertical-divider"></div>
+                <div id="stat-item-3" class="stat-item"></div>
+                <div class="vertical-divider"></div>
+                <div id="stat-item-4" class="stat-item"></div>
+                <div class="vertical-divider"></div>
+                <div id="stat-item-5" class="stat-item"></div>
             </div>
-            <div class="progress-bar">
-                <div id="progress-fill" class="progress-fill"></div>
+            <div class="progress-container">
+                <span class="bonuses-label">BONUSES:</span>
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <span id="bonuses-count" class="bonuses-count"></span>
             </div>
         </div>
-    
-        <div class="vertical-divider"></div>
-    
-        <div class="slots-container">
-            <div id="best-win-container" class="best-win-container"></div>
-            <div id="bonus-cards-container" class="bonus-cards-container"></div>
+        <div class="main-container">
+            <div id="win-container" class="win-container">
+                <!-- Best/Worst bonus content -->
+            </div>
+            <div class="vertical-dividerB"></div>
+            <div class="bonus-cards-container">
+                <div id="bonus-cards-wrapper" class="bonus-cards-wrapper">
+                    <!-- Bonus cards content -->
+                </div>
+            </div>
         </div>
     </div>
 

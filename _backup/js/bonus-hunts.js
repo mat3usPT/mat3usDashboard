@@ -85,6 +85,47 @@ function handleHuntAction(form) {
 //////////////////////////////////////////////////////
 //////////////////////////////////////////////////////
 
+function setupHuntPhaseSelect() {
+    const phaseSelect = document.getElementById('hunt-phase');
+    if (!phaseSelect) return;
+
+    phaseSelect.addEventListener('change', function () {
+        const huntId = this.dataset.huntId;
+        const newPhase = this.value;
+
+        fetch(`/bonus-hunts/${huntId}/update-phase`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ phase: newPhase })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                console.log('Hunt phase updated successfully');
+                updateUIForPhase(data.hunt);
+                updateAddBonusForm(data.hunt);
+                updateBonusTable(data.hunt);
+                updateStatistics(data.hunt);
+            } else {
+                console.error('Failed to update hunt phase:', data.error);
+                alert(`Failed to update hunt phase: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating hunt phase:', error);
+            alert('An error occurred while updating the hunt phase. Please try again.');
+        });
+    });
+}
+
 
 function setupBonusActions() {
     const bonusTable = document.getElementById('bonus-table');
