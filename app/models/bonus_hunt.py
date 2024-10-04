@@ -51,8 +51,8 @@ class BonusHunt(db.Model):
         
         investimento = self.custo_inicial - saldo_restante
         media_aposta_inicial = total_apostas / num_bonus if num_bonus > 0 else 0
-        break_even_x_inicial = int(investimento / media_aposta_inicial) if media_aposta_inicial > 0 else float('inf')
-        break_even_euro_inicial = int(investimento / num_bonus) if num_bonus > 0 else investimento
+        break_even_x_inicial = (investimento / total_apostas) if total_apostas > 0 else float('inf')
+        break_even_euro_inicial = investimento / num_bonus if num_bonus > 0 else investimento
 
         bonuses_nao_abertos = [b for b in self.bonuses if b.payout is None]
         total_apostas_nao_abertas = sum(b.aposta for b in bonuses_nao_abertos)
@@ -60,12 +60,12 @@ class BonusHunt(db.Model):
 
         media_aposta = total_apostas_nao_abertas / num_bonus_nao_abertos if num_bonus_nao_abertos > 0 else 0
         valor_restante = investimento - total_ganho
-        break_even_x = int(valor_restante / media_aposta) if total_apostas_nao_abertas > 0 else math.inf
-        break_even_euro = int(valor_restante / num_bonus_nao_abertos) if num_bonus_nao_abertos > 0 else 0
+        break_even_x = (valor_restante / total_apostas_nao_abertas) if total_apostas_nao_abertas > 0 else float('inf')
+        break_even_euro = valor_restante / num_bonus_nao_abertos if num_bonus_nao_abertos > 0 else 0
 
         bonuses_abertos = [b for b in self.bonuses if b.payout is not None]
-        avg_x = int(sum(b.multiplicador for b in bonuses_abertos) / len(bonuses_abertos)) if bonuses_abertos else 0
-        avg_euro = int(sum(b.payout for b in bonuses_abertos) / len(bonuses_abertos)) if bonuses_abertos else 0
+        avg_x = sum(b.multiplicador for b in bonuses_abertos) / len(bonuses_abertos) if bonuses_abertos else 0
+        avg_euro = sum(b.payout for b in bonuses_abertos) / len(bonuses_abertos) if bonuses_abertos else 0
 
         best_x = max(bonuses_abertos, key=lambda b: b.multiplicador) if bonuses_abertos else None
         best_euro = max(bonuses_abertos, key=lambda b: b.payout) if bonuses_abertos else None

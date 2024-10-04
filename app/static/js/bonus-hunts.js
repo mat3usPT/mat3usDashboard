@@ -1,11 +1,10 @@
-let socket;
 document.addEventListener('DOMContentLoaded', function () {
     // Funções comuns a todas as páginas
     setupCreateHuntForm();
     setupHuntActions();
     setupEditHuntButtons();
     setupHuntPhaseSelect();
-    socket = io('/widgets');
+
     if (typeof Sortable === 'undefined') {
         console.error('Sortable library is not loaded. Some features may not work correctly.');
     }
@@ -581,36 +580,19 @@ function activateBonus(bonusId) {
             console.log(`Bonus ${bonusId} activated successfully`);
             const huntDataElement = document.getElementById('hunt-data');
             if (huntDataElement) {
-                const huntData = JSON.parse(huntDataElement.dataset.hunt);
-                huntData.bonus_atual_id = bonusId;
-                huntDataElement.dataset.hunt = JSON.stringify(huntData);
-
-                // Emit only 'bonus_activated' event
-                emitSocketEvent('bonus_activated', { 
-                    huntId: huntData.id, 
-                    activeBonusId: bonusId,
-                    bonuses: huntData.bonuses
-                });
+                huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
             }
 
             updateBonusTable(data.hunt);
             focusPayoutInput(bonusId);
         } else {
-            throw new Error(data.error || 'Failed to activate bonus');
+            throw new Error(data.error || 'Failed to activate the bonus');
         }
     })
     .catch(error => {
-        console.error('Error activating bonus:', error);
-        alert('Failed to activate bonus: ' + error.message);
+        console.error('Error activating the bonus:', error);
+        alert('Failed to activate the bonus: ' + error.message);
     });
-}
-
-function emitSocketEvent(eventName, data) {
-    if (typeof socket !== 'undefined' && socket.connected) {
-        socket.emit(eventName, data);
-    } else {
-        console.warn(`Socket not available or not connected. Unable to emit ${eventName} event.`);
-    }
 }
 
 function deactivateBonus(bonusId) {
@@ -818,7 +800,9 @@ function updatePayout(bonusId, payout) {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            return response.json().then(err => {
+                throw new Error(err.error || `HTTP error! status: ${response.status}`);
+            });
         }
         return response.json();
     })
@@ -828,9 +812,6 @@ function updatePayout(bonusId, payout) {
             const huntDataElement = document.getElementById('hunt-data');
             if (huntDataElement) {
                 huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
-
-                // Emit only 'bonus_hunt_update' event
-                emitSocketEvent('bonus_hunt_update', { data: data.hunt });
             }
 
             updateBonusTable(data.hunt);
@@ -844,6 +825,11 @@ function updatePayout(bonusId, payout) {
         } else {
             throw new Error(data.error || 'Unknown error occurred');
         }
+    })
+    .catch(error => {
+        console.error('Erro ao atualizar payout:', error);
+        alert(`Erro ao atualizar payout: ${error.message}. Por favor, tente novamente.`);
+        // Optionally, reset the input field or take other actions to recover from the error
     });
 }
 

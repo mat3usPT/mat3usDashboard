@@ -1,24 +1,17 @@
-import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from app import db, socketio  # Importar socketio
+from app import db, socketio
 from app.models.bonus_hunt import BonusHunt, Bonus
 from app.models.slot import Slot
 from sqlalchemy.exc import SQLAlchemyError
 from flask_socketio import emit
+import logging
+import traceback
 
 bonus_hunts = Blueprint('bonus_hunts', __name__)
 logger = logging.getLogger(__name__)
 
-
 def get_active_hunt():
     return BonusHunt.query.filter_by(is_active=True).first()
-
-def emit_bonus_hunt_update():
-    current_hunt = get_active_hunt()
-    if current_hunt:
-        data = current_hunt.to_dict()
-        print('Emitindo dados do hunt:', data)  # Depuração
-        socketio.emit('bonus_hunt_update', {'data': data}, namespace='/widgets')
 
 # Função para retornar os dados da hunt ativa
 @bonus_hunts.route('/current', methods=['GET'])
@@ -29,6 +22,74 @@ def get_current_hunt():
     else:
         return jsonify({"error": "No active hunt found"}), 404
     
+def emit_bonus_hunt_update(hunt=None):
+    logger.info("Entering emit_bonus_hunt_update function")
+    try:
+        if hunt is None:
+            hunt = BonusHunt.query.filter_by(is_active=True).first()
+        if hunt:
+            hunt_data = hunt.to_dict()
+            logger.info(f"Emitting hunt data: {hunt_data}")
+            socketio.emit('bonus_hunt_update', {'data': hunt_data}, namespace='/widgets')
+        else:
+            logger.warning("No active hunt found for update emission")
+    except Exception as e:
+        logger.error(f"Error in emit_bonus_hunt_update: {str(e)}")
+        logger.error(traceback.format_exc())
+
+@bonus_hunts.route('/update_payout/<int:bonus_id>', methods=['POST'])
+def update_payout(bonus_id):
+    try:
+        logger.info(f"Updating payout for bonus {bonus_id}")
+        bonus = Bonus.query.get_or_404(bonus_id)
+        hunt = bonus.hunt
+        data = request.json
+        logger.info(f"Received data: {data}")
+        payout = data.get('payout')
+        
+        if payout == '' or payout is None:
+            bonus.payout = None
+            logger.info(f"Setting payout to None for bonus {bonus_id}")
+        else:
+            try:
+                bonus.payout = float(payout)
+                logger.info(f"Setting payout to {bonus.payout} for bonus {bonus_id}")
+            except ValueError:
+                logger.error(f"Invalid payout value: {payout}")
+                return jsonify({'success': False, 'error': 'Invalid payout value'}), 400
+        
+        db.session.commit()
+        logger.info(f"Committed payout update for bonus {bonus_id}")
+        
+        ordered_bonuses = hunt.get_ordered_bonuses()
+        current_index = ordered_bonuses.index(bonus)
+        next_bonus = ordered_bonuses[current_index + 1] if current_index + 1 < len(ordered_bonuses) else None
+        
+        if next_bonus:
+            hunt.bonus_atual_id = next_bonus.id
+            db.session.commit()
+            logger.info(f"Updated active bonus to {next_bonus.id}")
+        
+        hunt.estatisticas = hunt.calcular_estatisticas()
+        logger.info("Recalculated hunt statistics")
+        
+        try:
+            emit_bonus_hunt_update(hunt)
+            logger.info("Emitted bonus hunt update")
+        except Exception as e:
+            logger.error(f"Error in emit_bonus_hunt_update: {str(e)}")
+            logger.error(traceback.format_exc())
+        
+        return jsonify({
+            'success': True, 
+            'hunt': hunt.to_dict(),
+            'next_bonus_id': next_bonus.id if next_bonus else None
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating payout: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @bonus_hunts.route('/create', methods=['POST'])
 def create_hunt():
@@ -192,44 +253,6 @@ def edit_hunt(id):
             db.session.rollback()
             flash(f'Error updating Bonus Hunt: {str(e)}', 'error')
         return redirect(url_for('bonus_hunts.list_hunts'))
-
-
-@bonus_hunts.route('/update_payout/<int:bonus_id>', methods=['POST'])
-def update_payout(bonus_id):
-    try:
-        bonus = Bonus.query.get_or_404(bonus_id)
-        hunt = bonus.hunt
-        data = request.json
-        payout = data.get('payout')
-        
-        if payout == '' or payout is None:
-            bonus.payout = None
-        else:
-            bonus.payout = float(payout)
-        
-        db.session.commit()
-        
-        ordered_bonuses = hunt.get_ordered_bonuses()
-        current_index = ordered_bonuses.index(bonus)
-        next_bonus = ordered_bonuses[current_index + 1] if current_index + 1 < len(ordered_bonuses) else None
-        
-        if next_bonus:
-            hunt.bonus_atual_id = next_bonus.id
-            db.session.commit()
-        
-        emit_bonus_hunt_update()
-        
-        hunt.estatisticas = hunt.calcular_estatisticas()
-        return jsonify({
-            'success': True, 
-            'hunt': hunt.to_dict(),
-            'next_bonus_id': next_bonus.id if next_bonus else None
-        })
-    except ValueError as e:
-        return jsonify({'success': False, 'error': f'Invalid value: {str(e)}'}), 400
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
 
 @bonus_hunts.route('/<int:id>/add_bonus', methods=['POST'])
 def add_bonus(id):
