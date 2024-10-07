@@ -284,9 +284,25 @@ function sortTable(sortBy, ascending) {
 
     // Update the order in the backend and local hunt-data
     const newOrder = rows.map(row => row.dataset.bonusId);
-    const huntId = document.getElementById('hunt-phase').dataset.huntId;
-
-    updateBonusOrder(newOrder);
+    
+    updateBonusOrder(newOrder)
+        .then((data) => {
+            if (data.success) {
+                updateHuntDataAndView(data.hunt);
+                return activateFirstUnpaidBonus(data.hunt);
+            }
+        })
+        .then(() => {
+            const huntDataElement = document.getElementById('hunt-data');
+            if (huntDataElement) {
+                const updatedHunt = JSON.parse(huntDataElement.dataset.hunt);
+                triggerOverlayUpdate(updatedHunt);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating bonus order:', error);
+            alert('Failed to update bonus order: ' + error.message);
+        });
 }
 
 function setupDraggableRows() {
@@ -320,10 +336,10 @@ function updateBonusOrder(bonusOrder) {
 
     if (!huntId) {
         console.error('Hunt ID is undefined');
-        return;
+        return Promise.reject(new Error('Hunt ID is undefined'));
     }
 
-    fetch(`/bonus-hunts/${huntId}/update_bonus_order`, {
+    return fetch(`/bonus-hunts/${huntId}/update_bonus_order`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -331,42 +347,22 @@ function updateBonusOrder(bonusOrder) {
         },
         body: JSON.stringify({ order: bonusOrder }),
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.text(); // Use text() instead of json()
-    })
-    .then(text => {
-        if (!text) {
-            console.log('Received empty response');
-            return { success: true }; // Assume success if empty
-        }
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            console.error('Error parsing JSON:', e);
-            throw new Error('Invalid JSON response');
-        }
-    })
+    .then(response => response.json())
     .then(data => {
         if (data.success) {
             console.log('Bonus order updated successfully');
             // Update the hunt data in the page
             const huntDataElement = document.getElementById('hunt-data');
             if (huntDataElement) {
-                let huntData = JSON.parse(huntDataElement.dataset.hunt);
-                huntData.bonus_order = bonusOrder.join(',');
+                let huntData = data.hunt;
+                // Ensure bonuses are sorted according to the new order
                 huntData.bonuses.sort((a, b) => bonusOrder.indexOf(a.id.toString()) - bonusOrder.indexOf(b.id.toString()));
                 huntDataElement.dataset.hunt = JSON.stringify(huntData);
             }
+            return data;
         } else {
             throw new Error(data.error || 'Failed to update bonus order');
         }
-    })
-    .catch(error => {
-        console.error('Error updating bonus order:', error);
-        alert('Failed to update bonus order: ' + error.message);
     });
 }
 
@@ -606,13 +602,9 @@ function activateBonus(bonusId) {
     .then(data => {
         if (data.success) {
             console.log(`Bonus ${bonusId} activated successfully`);
-            const huntDataElement = document.getElementById('hunt-data');
-            if (huntDataElement) {
-                huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
-            }
-
-            updateBonusTable(data.hunt);
+            updateHuntDataAndView(data.hunt);
             focusPayoutInput(bonusId);
+            triggerOverlayUpdate(data.hunt);
         } else {
             throw new Error(data.error || 'Failed to activate the bonus');
         }
@@ -621,6 +613,20 @@ function activateBonus(bonusId) {
         console.error('Error activating the bonus:', error);
         alert('Failed to activate the bonus: ' + error.message);
     });
+}
+
+function updateHuntDataAndView(updatedHunt) {
+    // Update hunt data in the page
+    const huntDataElement = document.getElementById('hunt-data');
+    if (huntDataElement) {
+        huntDataElement.dataset.hunt = JSON.stringify(updatedHunt);
+    }
+
+    // Update the bonus table
+    updateBonusTable(updatedHunt);
+
+    // Update statistics
+    updateStatistics(updatedHunt);
 }
 
 function deactivateBonus(bonusId) {
@@ -1540,26 +1546,22 @@ function resetBonusOrder(e) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Update the hunt data in the page
-            const huntDataElement = document.getElementById('hunt-data');
-            if (huntDataElement) {
-                huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
-            }
-
-            // Update the bonus table
-            updateBonusTable(data.hunt);
+            updateHuntDataAndView(data.hunt);
             
-            // Update statistics
-            updateStatistics(data.hunt);
-
             // Reset sorting indicators
             const headers = document.querySelectorAll('#bonus-table th.sortable');
             headers.forEach(header => header.classList.remove('asc', 'desc'));
 
-            // Trigger an update for the overlay
-            triggerOverlayUpdate(data.hunt);
+            return activateFirstUnpaidBonus(data.hunt);
         } else {
             throw new Error(data.error || 'Failed to reset bonus order');
+        }
+    })
+    .then(() => {
+        const huntDataElement = document.getElementById('hunt-data');
+        if (huntDataElement) {
+            const updatedHunt = JSON.parse(huntDataElement.dataset.hunt);
+            triggerOverlayUpdate(updatedHunt);
         }
     })
     .catch(error => {
@@ -1589,4 +1591,15 @@ function triggerOverlayUpdate(huntData) {
     .catch(error => {
         console.error('Error triggering overlay update:', error);
     });
+}
+
+function activateFirstUnpaidBonus(hunt) {
+    const firstUnpaidBonus = hunt.bonuses.find(bonus => bonus.payout === null);
+    if (firstUnpaidBonus) {
+        return new Promise((resolve) => {
+            activateBonus(firstUnpaidBonus.id);
+            resolve();
+        });
+    }
+    return Promise.resolve(); // If no unpaid bonus found
 }

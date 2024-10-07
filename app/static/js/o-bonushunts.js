@@ -7,6 +7,7 @@ let currentHuntData;
 let activeIndex = 0;
 let socket;
 let positionCardsTimeout;
+let updateOverlayTimeout;
 
 document.addEventListener('DOMContentLoaded', initialize);
 
@@ -32,7 +33,7 @@ function initializeSocket() {
         socket.on('bonus_hunt_update', (data) => {
             console.log('Received bonus hunt update:', data);
             if (data && data.data) {
-                updateOverlay(data.data, true);  // Force card update
+                debouncedUpdateOverlay(data.data);
             }
         });
         socket.on('disconnect', () => console.log('Disconnected from WebSocket'));
@@ -49,7 +50,7 @@ function fetchCurrentHunt() {
         })
         .then(data => {
             if (data.error) console.error(data.error);
-            else updateOverlay(data);
+            else debouncedUpdateOverlay(data);
         })
         .catch(error => console.error('Error fetching overlay data:', error));
 }
@@ -61,7 +62,14 @@ function debouncedPositionCards(totalBonuses) {
     }, 50);
 }
 
-function updateOverlay(huntData, updateCards = true) {
+function debouncedUpdateOverlay(huntData) {
+    clearTimeout(updateOverlayTimeout);
+    updateOverlayTimeout = setTimeout(() => {
+        updateOverlay(huntData, true);  // Force card update
+    }, 50);
+}
+
+function updateOverlay(huntData, updateCards = false) {
     console.log('Updating overlay with hunt data:', huntData);
     currentHuntData = huntData;
 
@@ -83,11 +91,16 @@ function updateOverlay(huntData, updateCards = true) {
     }
 
     if (huntData.phase === 'opening') {
-        const newActiveIndex = huntData.bonuses.findIndex(bonus => bonus.id === huntData.bonus_atual_id);
+        const bonusOrder = huntData.bonus_order ? huntData.bonus_order.split(',') : [];
+        const sortedBonuses = bonusOrder.length > 0
+            ? bonusOrder.map(id => huntData.bonuses.find(b => b.id.toString() === id)).filter(Boolean)
+            : huntData.bonuses;
+        
+        const newActiveIndex = sortedBonuses.findIndex(bonus => bonus.id === huntData.bonus_atual_id);
         if (newActiveIndex !== -1 && newActiveIndex !== activeIndex) {
             activeIndex = newActiveIndex;
             console.log(`Updated activeIndex to: ${activeIndex}`);
-            positionCardsForOpening(huntData.bonuses.length);
+            debouncedPositionCards(sortedBonuses.length);
         }
     }
 }
@@ -95,16 +108,16 @@ function updateOverlay(huntData, updateCards = true) {
 function updateHuntInfo(huntData) {
     const huntNameEl = document.getElementById('hunt-name');
     huntNameEl.textContent = huntData.nome.toUpperCase() || 'N/A';
-    
+
     let huntStateEl = document.querySelector('.hunt-state');
     if (!huntStateEl) {
         huntStateEl = document.createElement('div');
         huntStateEl.className = 'hunt-state';
         huntNameEl.parentElement.appendChild(huntStateEl);
     }
-    
+
     let stateIcon, stateColor;
-    switch(huntData.phase) {
+    switch (huntData.phase) {
         case 'hunting':
             stateIcon = 'fa-search';
             stateColor = 'gold';
@@ -118,7 +131,7 @@ function updateHuntInfo(huntData) {
             stateColor = 'green';
             break;
     }
-    
+
     huntStateEl.innerHTML = `
         <i class="fas ${stateIcon}"></i>
         <span>${huntData.phase.toUpperCase()}</span>
@@ -202,13 +215,13 @@ function updateProgressBar(stats) {
         const progressPercentage = (stats.num_bonus_abertos / stats.num_bonus) * 100;
         progressFill.style.width = `${progressPercentage}%`;
         bonusesCount.textContent = `${stats.num_bonus_abertos} / ${stats.num_bonus}`;
-        
+
         // Adicionar ícone ao rótulo de bônus
         bonusesLabel.innerHTML = '<i class="fas fa-gift"></i> BONUSES';
     } else {
         progressContainer.style.display = 'none';
         bonusesCount.textContent = `${stats.num_bonus}`;
-        
+
         // Adicionar ícone ao rótulo de bônus
         bonusesLabel.innerHTML = '<i class="fas fa-gift"></i> BONUSES';
     }
@@ -223,33 +236,34 @@ function updateBonusCards(huntData) {
         return;
     }
 
+    const bonusOrder = huntData.bonus_order ? huntData.bonus_order.split(',') : [];
+    const sortedBonuses = bonusOrder.length > 0
+        ? bonusOrder.map(id => huntData.bonuses.find(b => b.id.toString() === id)).filter(Boolean)
+        : huntData.bonuses;
+
     // Update existing cards and add new ones
-    huntData.bonuses.forEach((bonus, index) => {
-        try {
-            let card = container.querySelector(`[data-bonus-id="${bonus.id}"]`);
-            if (!card) {
-                card = createBonusCard(bonus);
-                if (card) {
-                    container.appendChild(card);
-                }
-            } else {
-                updateBonusCardContent(card, bonus);
-            }
-        } catch (error) {
-            console.error(`Error updating bonus card ${bonus.id}:`, error);
+    sortedBonuses.forEach((bonus, index) => {
+        let card = container.querySelector(`[data-bonus-id="${bonus.id}"]`);
+        if (!card) {
+            card = createBonusCard(bonus);
+            container.appendChild(card);
+        } else {
+            updateBonusCardContent(card, bonus);
         }
+        card.style.order = index;
+        card.dataset.order = index; // Add this line to store the order
     });
 
     // Remove cards that are no longer present
     Array.from(container.children).forEach(card => {
         const bonusId = parseInt(card.dataset.bonusId);
-        if (!huntData.bonuses.some(bonus => bonus.id === bonusId)) {
+        if (!sortedBonuses.some(bonus => bonus.id === bonusId)) {
             card.remove();
         }
     });
 
     if (huntData.phase === 'opening') {
-        positionCardsForOpening(huntData.bonuses.length);
+        debouncedPositionCards(sortedBonuses.length);
     }
 }
 
@@ -262,8 +276,8 @@ function updateBonusCardContent(card, bonus) {
     // Update card content without recreating the entire card
     const slotNameElement = card.querySelector('.slot-name');
     if (slotNameElement) {
-        slotNameElement.textContent = bonus.slot.name.length > 25 
-            ? bonus.slot.name.substring(0, 26) + '...' 
+        slotNameElement.textContent = bonus.slot.name.length > 25
+            ? bonus.slot.name.substring(0, 26) + '...'
             : bonus.slot.name;
     }
 
@@ -276,7 +290,7 @@ function updateBonusCardContent(card, bonus) {
     if (slotImageElement) {
         slotImageElement.src = bonus.slot.image;
     }
-    
+
     const slotInfo = card.querySelector('.slot-info');
     if (slotInfo) {
         if (bonus.payout !== null) {
@@ -325,9 +339,14 @@ function createBonusCard(bonus, isWinCard = false, winType = '') {
     const noteIcon = getNoteIcon(bonus.nota);
 
     // Truncate the slot name if it's longer than 25 characters
-    const truncatedName = bonus.slot.name.length > 25 
-        ? bonus.slot.name.substring(0, 26) + '...' 
+    const truncatedName = bonus.slot.name.length > 25
+        ? bonus.slot.name.substring(0, 26) + '...'
         : bonus.slot.name;
+
+    const slotIdElement = card.querySelector('.slot-id');
+    if (slotIdElement) {
+        slotIdElement.textContent = `#${bonus.order || ''}`;
+    }
 
     card.innerHTML = `
         <div class="slot-background" style="background-image: url(${bonus.slot.image})"></div>
@@ -359,7 +378,6 @@ function createBonusCard(bonus, isWinCard = false, winType = '') {
             ` : ''}
         </div>
     `;
-    console.log('Created card HTML:', card.outerHTML);
     return card;
 }
 
@@ -369,6 +387,9 @@ function positionCardsForOpening(totalBonuses) {
     const container = document.querySelector('.bonus-cards-wrapper');
     const cards = Array.from(container.children);
 
+    // Sort cards based on their order, but keep them in their current DOM positions
+    const sortedCards = cards.slice().sort((a, b) => parseInt(a.dataset.order) - parseInt(b.dataset.order));
+
     let startIndex = Math.max(0, Math.min(activeIndex - Math.floor(VISIBLE_CARDS / 2), totalBonuses - VISIBLE_CARDS));
     console.log(`Calculated start index: ${startIndex}`);
 
@@ -376,7 +397,7 @@ function positionCardsForOpening(totalBonuses) {
     container.style.width = `${totalWidth}px`;
     container.style.paddingLeft = `${CONTAINER_LEFT_PADDING}px`;
 
-    cards.forEach((card, index) => {
+    sortedCards.forEach((card, index) => {
         let xPosition = (index * CARD_WIDTH) + CONTAINER_LEFT_PADDING;
         if (index > activeIndex) xPosition += ACTIVE_CARD_EXTRA_SPACE;
         if (index >= activeIndex) xPosition += ACTIVE_CARD_EXTRA_SPACE;
@@ -386,7 +407,7 @@ function positionCardsForOpening(totalBonuses) {
 
         const isVisible = index >= startIndex && index < startIndex + VISIBLE_CARDS;
         const newClass = isVisible ? 'visible' : (index < startIndex ? 'exiting' : 'entering');
-        
+
         if (!card.classList.contains(newClass)) {
             card.classList.remove('visible', 'entering', 'exiting');
             card.classList.add(newClass);
@@ -555,8 +576,6 @@ function updateBestWorstWinContainer(huntData) {
         winContainer.style.display = 'none';
         stopWinCardToggle();
     }
-
-    console.log('Updated win container HTML:', winContainer.innerHTML);
     checkWinCardClasses();
 }
 

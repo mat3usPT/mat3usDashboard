@@ -470,10 +470,17 @@ def update_bonus_order(hunt_id):
             hunt.bonus_order = ','.join(map(str, new_order))
             db.session.commit()
             
-            # Emitir atualização para o overlay
-            emit_bonus_hunt_update()
+            # Get the updated hunt data
+            updated_hunt = hunt.to_dict()
             
-            return jsonify({'success': True, 'message': 'Bonus order updated successfully'})
+            # Emit update for the overlay
+            emit_bonus_hunt_update(updated_hunt)
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Bonus order updated successfully',
+                'hunt': updated_hunt
+            })
         return jsonify({'success': False, 'error': 'No order provided'}), 400
     except Exception as e:
         db.session.rollback()
@@ -495,9 +502,12 @@ def reset_bonus_order(id):
         'hunt': hunt.to_dict()
     })
 
-def emit_bonus_hunt_update():
-    current_hunt = BonusHunt.query.filter_by(is_active=True).first()
-    if current_hunt:
-        socketio.emit('bonus_hunt_update', {'data': current_hunt.to_dict()}, namespace='/widgets')
+def emit_bonus_hunt_update(hunt_data=None):
+    if hunt_data is None:
+        current_hunt = BonusHunt.query.filter_by(is_active=True).first()
+        if current_hunt:
+            hunt_data = current_hunt.to_dict()
+        else:
+            return  # No active hunt to update
 
-
+    socketio.emit('bonus_hunt_update', {'data': hunt_data}, namespace='/widgets')
