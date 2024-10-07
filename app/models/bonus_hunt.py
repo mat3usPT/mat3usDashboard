@@ -5,6 +5,8 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from decimal import Decimal
 from flask import url_for
 import math
+from datetime import datetime
+
 
 class BonusHunt(db.Model):
     __tablename__ = 'bonus_hunts'
@@ -33,10 +35,10 @@ class BonusHunt(db.Model):
 
     def get_ordered_bonuses(self):
         if not self.bonus_order:
-            return self.bonuses.order_by(Bonus.id).all()
+            return sorted(self.bonuses, key=lambda b: b.id)
         
-        order_dict = {id: index for index, id in enumerate(self.bonus_order.split(','))}
-        return sorted(self.bonuses, key=lambda b: order_dict.get(str(b.id), float('inf')))
+        order_dict = {int(id): index for index, id in enumerate(self.bonus_order.split(',')) if id}
+        return sorted(self.bonuses, key=lambda b: order_dict.get(b.id, float('inf')))
       
     def calcular_estatisticas(self):
         total_ganho = sum(b.payout for b in self.bonuses if b.payout is not None)
@@ -96,23 +98,41 @@ class BonusHunt(db.Model):
         }
 
     def to_dict(self):
-        estatisticas = self.calcular_estatisticas()
-        
-        def handle_infinite(value):
-            if isinstance(value, float):
-                if math.isinf(value) or value > 1e300:
-                    return "Infinity"
-                return value
-            return value
+        try:
+            estatisticas = self.calcular_estatisticas()
+        except Exception as e:
+            estatisticas = {
+                'investimento': 0,
+                'total_ganho': 0,
+                'num_bonus': 0,
+                'num_bonus_abertos': 0,
+                'break_even_x_inicial': None,
+                'break_even_euro_inicial': None,
+                'break_even_x': None,
+                'break_even_euro': None,
+                'avg_x': None,
+                'avg_euro': None,
+                'error': str(e)
+            }
 
-        # Formatar as estatísticas e tratar valores infinitos
-        estatisticas = {k: handle_infinite(v) for k, v in estatisticas.items()}
+        def handle_value(value):
+            if value is None:
+                return None
+            try:
+                float_value = float(value)
+                if math.isinf(float_value) or float_value > 1e300:
+                    return None
+                return float_value
+            except (ValueError, TypeError):
+                return None
+
+        estatisticas = {k: handle_value(v) for k, v in estatisticas.items()}
 
         return {
             'id': self.id,
             'nome': self.nome,
-            'custo_inicial': self.custo_inicial,
-            'data_criacao': self.data_criacao.strftime('%d/%m/%Y %H:%M') if self.data_criacao else None,
+            'custo_inicial': handle_value(self.custo_inicial),
+            'data_criacao': self.data_criacao.strftime('%Y-%m-%d %H:%M:%S') if isinstance(self.data_criacao, datetime) else str(self.data_criacao or ''),
             'is_active': self.is_active,
             'bonus_atual_id': self.bonus_atual_id,
             'phase': self.phase,

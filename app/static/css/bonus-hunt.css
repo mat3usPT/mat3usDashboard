@@ -295,6 +295,23 @@
     color: #666;
 }
 
+/* Sortable styles */
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    padding: 10px;
+    position: relative;
+}
+
+.sortable:hover {
+    background-color: #f0f0f0;
+}
+
+/* Remove the up/down arrows */
+.sortable::after {
+    content: none;
+}
+
 /* Responsive styles */
 @media (max-width: 768px) {
     #add-bonus-form .form-row {

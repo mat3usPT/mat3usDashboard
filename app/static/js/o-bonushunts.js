@@ -1,4 +1,4 @@
-const CARD_WIDTH = 232; // 230px card width + 5px margin
+const CARD_WIDTH = 231; // 230px card width + 5px margin
 const VISIBLE_CARDS = 7;
 const CONTAINER_LEFT_PADDING = 10; // Extra space on the left
 const ACTIVE_CARD_EXTRA_SPACE = 10; // Extra space on each side of the active card
@@ -317,9 +317,9 @@ function updateBonusCardContent(card, bonus) {
 }
 
 function createBonusCard(bonus, isWinCard = false, winType = '') {
-    console.log('Creating bonus card:', bonus);
+    console.log('Creating bonus card:', { bonus, isWinCard, winType });
     const card = document.createElement('div');
-    card.className = `slot-card ${bonus.payout !== null ? 'opened' : ''} ${winType}`;
+    card.className = `slot-card ${bonus.payout !== null ? 'opened' : ''} ${winType} ${isWinCard ? 'win-slot-card' : ''}`;
     card.dataset.bonusId = bonus.id;
 
     const noteIcon = getNoteIcon(bonus.nota);
@@ -339,7 +339,7 @@ function createBonusCard(bonus, isWinCard = false, winType = '') {
             <img src="${bonus.slot.image}" alt="${bonus.slot.name}" class="slot-image">
             ${isWinCard ? `<div class="win-icon">${winType === 'best' ? '🏆' : '💩'}</div>` : ''}
         </div>
-        <div class="slot-info">
+        <div class="slot-info ${bonus.payout !== null ? 'payout-shown' : ''}">
             ${bonus.payout !== null ? `
                 <div class="slot-multiplier">${formatMultiplier(bonus.multiplicador)}</div>
                 <div class="slot-win">${formatCurrency(bonus.payout)}</div>
@@ -359,6 +359,7 @@ function createBonusCard(bonus, isWinCard = false, winType = '') {
             ` : ''}
         </div>
     `;
+    console.log('Created card HTML:', card.outerHTML);
     return card;
 }
 
@@ -524,6 +525,7 @@ function stopWinCardToggle() {
 }
 
 function updateBestWorstWinContainer(huntData) {
+    console.log('Updating best/worst win container:', huntData);
     const winContainer = document.getElementById('win-container');
 
     if (huntData.phase === 'opening') {
@@ -535,6 +537,9 @@ function updateBestWorstWinContainer(huntData) {
                 (current.payout > (best ? best.payout : 0)) ? current : best, null);
             const worstBonus = huntData.bonuses.reduce((worst, current) =>
                 (current.payout && current.payout < (worst ? worst.payout : Infinity)) ? current : worst, null);
+
+            console.log('Best bonus:', bestBonus);
+            console.log('Worst bonus:', worstBonus);
 
             winContainer.innerHTML = `
                 <div class="win-card best">
@@ -550,6 +555,20 @@ function updateBestWorstWinContainer(huntData) {
         winContainer.style.display = 'none';
         stopWinCardToggle();
     }
+
+    console.log('Updated win container HTML:', winContainer.innerHTML);
+    checkWinCardClasses();
+}
+
+function checkWinCardClasses() {
+    const winCards = document.querySelectorAll('.win-card');
+    winCards.forEach(card => {
+        console.log('Win card classes:', card.className);
+        const slotCard = card.querySelector('.slot-card');
+        if (slotCard) {
+            console.log('Slot card classes:', slotCard.className);
+        }
+    });
 }
 
 function getNoteIcon(note) {

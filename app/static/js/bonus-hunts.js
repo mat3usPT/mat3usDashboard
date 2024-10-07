@@ -9,21 +9,43 @@ document.addEventListener('DOMContentLoaded', function () {
         console.error('Sortable library is not loaded. Some features may not work correctly.');
     }
 
-    const huntDataElement = document.getElementById('hunt-data');
-    let huntData = null; // Definir huntData fora do bloco de if para estar acessível em todo o escopo
-
-    if (huntDataElement && huntDataElement.dataset.hunt) {
+    // Verificar se estamos na página de listagem
+    const huntsDataElement = document.getElementById('hunts-data');
+    if (huntsDataElement && huntsDataElement.dataset.hunts) {
         try {
-            huntData = JSON.parse(huntDataElement.dataset.hunt); // Atribuir valor a huntData
-            updateStatistics(huntData);
-            updateBonusTable(huntData);
+            const huntsData = JSON.parse(huntsDataElement.dataset.hunts);
+            console.log('Hunts data loaded:', huntsData);
+            // Aqui você pode adicionar lógica para usar huntsData na página de listagem
+            // Por exemplo, atualizar estatísticas gerais ou inicializar componentes específicos da listagem
         } catch (error) {
-            console.error("Erro ao analisar JSON:", error);
+            console.error("Erro ao analisar JSON dos hunts:", error);
         }
-    } else {
-        console.error("O elemento hunt-data não contém JSON válido.");
     }
 
+    // Verificar se estamos na página de visualização individual
+    const huntDataElement = document.getElementById('hunt-data');
+    if (document.querySelector('.bonus-hunt-view') && huntDataElement && huntDataElement.dataset.hunt) {
+        try {
+            const huntData = JSON.parse(huntDataElement.dataset.hunt);
+            console.log('Individual hunt data loaded:', huntData);
+            updateStatistics(huntData);
+            updateBonusTable(huntData);
+            setupBonusActions();
+            setupSaveBonusEdit();
+            setupAddBonusForm();
+            setupAddNewSlotButton();
+            setupSlotSearch();
+            initProviderSuggestions();
+            setupSortableTable();
+            setupDraggableRows();
+            setupPayoutInputs();
+            setupResetButton();
+        } catch (error) {
+            console.error("Erro ao analisar JSON do hunt individual:", error);
+        }
+    }
+
+    // Lógica comum para ambas as páginas
     const bonusTable = document.getElementById('bonus-table');
     if (bonusTable) {
         bonusTable.addEventListener('keydown', function (e) {
@@ -31,21 +53,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 handlePayoutInput(e);
             }
         });
-    }
-
-    // Verifica se estamos na página de visualização de um Bonus Hunt individual
-    if (document.querySelector('.bonus-hunt-view') && huntData) { // Garantir que huntData existe
-        updateStatistics(huntData);
-        updateBonusTable(huntData);
-        setupBonusActions();
-        setupSaveBonusEdit();
-        setupAddBonusForm();
-        setupAddNewSlotButton();
-        setupSlotSearch();
-        initProviderSuggestions();
-        setupSortableTable();
-        setupDraggableRows();
-        setupPayoutInputs();
     }
 });
 
@@ -215,10 +222,16 @@ function setupPayoutInputs() {
 
 function setupSortableTable() {
     const table = document.getElementById('bonus-table');
-    const headers = table.querySelectorAll('th.sortable');
+    const headers = table.querySelectorAll('.sortable');
 
     headers.forEach(header => {
-        header.addEventListener('click', () => {
+        header.addEventListener('click', (event) => {
+            // Check if the click was on the reset button
+            if (event.target.closest('#resetBonusOrder')) {
+                // If it was the reset button, don't sort
+                return;
+            }
+
             const sortBy = header.dataset.sort;
             const isAscending = header.classList.contains('asc');
 
@@ -228,6 +241,16 @@ function setupSortableTable() {
             header.classList.add(isAscending ? 'desc' : 'asc');
         });
     });
+
+    // Set up the reset button separately
+    const resetButton = document.getElementById('resetBonusOrder');
+    if (resetButton) {
+        resetButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation(); // Prevent the click from bubbling up to the header
+            resetBonusOrder(event);
+        });
+    }
 }
 
 function sortTable(sortBy, ascending) {
@@ -235,50 +258,35 @@ function sortTable(sortBy, ascending) {
     const rows = Array.from(tbody.querySelectorAll('tr'));
 
     rows.sort((a, b) => {
-        let aValue = a.querySelector(`td[data-${sortBy}]`).dataset[sortBy];
-        let bValue = b.querySelector(`td[data-${sortBy}]`).dataset[sortBy];
+        let aValue, bValue;
+        if (sortBy === 'slot') {
+            aValue = a.querySelector('.slot-name').textContent.toLowerCase();
+            bValue = b.querySelector('.slot-name').textContent.toLowerCase();
+        } else {
+            aValue = a.querySelector(`td[data-${sortBy}]`).dataset[sortBy];
+            bValue = b.querySelector(`td[data-${sortBy}]`).dataset[sortBy];
 
-        if (sortBy === 'bet' || sortBy === 'payout') {
-            aValue = parseFloat(aValue) || 0;
-            bValue = parseFloat(bValue) || 0;
-        } else if (sortBy === 'multiplier') {
-            aValue = parseFloat(aValue.replace('x', '')) || 0;
-            bValue = parseFloat(bValue.replace('x', '')) || 0;
+            if (sortBy === 'bet' || sortBy === 'payout') {
+                aValue = parseFloat(aValue) || 0;
+                bValue = parseFloat(bValue) || 0;
+            } else if (sortBy === 'multiplier') {
+                aValue = parseFloat(aValue.replace('x', '')) || 0;
+                bValue = parseFloat(bValue.replace('x', '')) || 0;
+            }
         }
 
         if (aValue < bValue) return ascending ? -1 : 1;
         if (aValue > bValue) return ascending ? 1 : -1;
         return 0;
     });
+
     rows.forEach(row => tbody.appendChild(row));
 
-    // Atualizar a ordem no backend e no hunt-data local
+    // Update the order in the backend and local hunt-data
     const newOrder = rows.map(row => row.dataset.bonusId);
     const huntId = document.getElementById('hunt-phase').dataset.huntId;
 
-    fetch(`/bonus-hunts/${huntId}/update_bonus_order`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify({ order: newOrder }),
-    })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('Bonus order updated successfully');
-                // Atualizar os dados do hunt localmente
-                const huntDataElement = document.getElementById('hunt-data');
-                let huntData = JSON.parse(huntDataElement.textContent);
-                huntData.bonus_order = newOrder.join(',');
-                huntData.bonuses.sort((a, b) => newOrder.indexOf(a.id.toString()) - newOrder.indexOf(b.id.toString()));
-                huntDataElement.textContent = JSON.stringify(huntData);
-            } else {
-                console.error('Failed to update bonus order:', data.error);
-            }
-        })
-        .catch(error => console.error('Error updating bonus order:', error));
+    updateBonusOrder(newOrder);
 }
 
 function setupDraggableRows() {
@@ -308,7 +316,6 @@ function setupDraggableRows() {
 }
 
 function updateBonusOrder(bonusOrder) {
-    // Get hunt_id from the #hunt-phase element
     const huntId = document.querySelector('#hunt-phase').dataset.huntId;
 
     if (!huntId) {
@@ -320,26 +327,47 @@ function updateBonusOrder(bonusOrder) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({ order: bonusOrder }),
     })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.text(); // Use text() instead of json()
+    })
+    .then(text => {
+        if (!text) {
+            console.log('Received empty response');
+            return { success: true }; // Assume success if empty
+        }
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            console.error('Error parsing JSON:', e);
+            throw new Error('Invalid JSON response');
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            console.log('Bonus order updated successfully');
+            // Update the hunt data in the page
+            const huntDataElement = document.getElementById('hunt-data');
+            if (huntDataElement) {
+                let huntData = JSON.parse(huntDataElement.dataset.hunt);
+                huntData.bonus_order = bonusOrder.join(',');
+                huntData.bonuses.sort((a, b) => bonusOrder.indexOf(a.id.toString()) - bonusOrder.indexOf(b.id.toString()));
+                huntDataElement.dataset.hunt = JSON.stringify(huntData);
             }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                console.log('Bonus order updated successfully');
-            } else {
-                throw new Error(data.error || 'Failed to update bonus order');
-            }
-        })
-        .catch(error => {
-            console.error('Error updating bonus order:', error);
-            alert('Failed to update bonus order: ' + error.message);
-        });
+        } else {
+            throw new Error(data.error || 'Failed to update bonus order');
+        }
+    })
+    .catch(error => {
+        console.error('Error updating bonus order:', error);
+        alert('Failed to update bonus order: ' + error.message);
+    });
 }
 
 function setupHuntPhaseSelect() {
@@ -834,33 +862,29 @@ function updatePayout(bonusId, payout) {
 }
 
 function updateBonusTable(hunt) {
-    console.log('Atualizando tabela de bônus:', hunt);
+    console.log('Updating bonus table:', hunt);
     const tbody = document.getElementById('bonus-tbody');
     if (!tbody) {
-        console.error('Tabela de bônus não encontrada');
+        console.error('Bonus table body not found');
         return;
     }
 
-    hunt.bonuses.forEach(bonus => {
-        let row = tbody.querySelector(`tr[data-bonus-id="${bonus.id}"]`);
-        if (!row) {
-            console.log(`Criando nova linha para o bônus ${bonus.id}`);
-            row = document.createElement('tr');
-            row.dataset.bonusId = bonus.id;
-            tbody.appendChild(row);
-        }
-        const isActive = bonus.id === hunt.bonus_atual_id;
-        updateBonusRow(row, bonus, hunt, isActive);
+    // Clear existing rows
+    tbody.innerHTML = '';
+
+    // Add rows in the order specified by hunt.bonus_order
+    const bonusOrder = hunt.bonus_order ? hunt.bonus_order.split(',') : [];
+    const orderedBonuses = bonusOrder.length > 0 
+        ? bonusOrder.map(id => hunt.bonuses.find(b => b.id.toString() === id)).filter(Boolean)
+        : hunt.bonuses;
+
+    orderedBonuses.forEach(bonus => {
+        const row = document.createElement('tr');
+        row.dataset.bonusId = bonus.id;
+        updateBonusRow(row, bonus, hunt, bonus.id === hunt.bonus_atual_id);
+        tbody.appendChild(row);
     });
 
-    // Remover linhas de bônus que não existem mais
-    Array.from(tbody.children).forEach(row => {
-        const bonusId = row.dataset.bonusId;
-        if (!hunt.bonuses.some(b => b.id === parseInt(bonusId))) {
-            console.log(`Removendo linha do bônus ${bonusId}`);
-            row.remove();
-        }
-    });
     updateAddBonusForm(hunt);
 }
 
@@ -1153,8 +1177,8 @@ function updateStatistics(hunt) {
         'saldo-restante': formatCurrency(hunt.estatisticas.saldo_restante),
         'total-ganho': formatCurrency(hunt.estatisticas.total_ganho),
         'lucro-prejuizo': formatCurrency(hunt.estatisticas.lucro_prejuizo),
-        'num-bonus': hunt.estatisticas.num_bonus,
-        'num-bonus-abertos': hunt.estatisticas.num_bonus_abertos,
+        'num-bonus': hunt.estatisticas.num_bonus || 'N/A',
+        'num-bonus-abertos': hunt.estatisticas.num_bonus_abertos || 'N/A',
         'media-aposta-inicial': formatCurrency(hunt.estatisticas.media_aposta_inicial),
         'media-aposta': formatCurrency(hunt.estatisticas.media_aposta),
         'break-even-x-inicial': formatMultiplier(hunt.estatisticas.break_even_x_inicial),
@@ -1178,7 +1202,17 @@ function updateStatistics(hunt) {
     updateBestWorstSlots(hunt.estatisticas);
 }
 
+function formatMultiplier(value) {
+    if (value === null || value === undefined || isNaN(value)) {
+        return 'N/A';
+    }
+    return `${parseFloat(value).toFixed(2)}x`;
+}
+
 function formatCurrency(value) {
+    if (value === null || value === undefined || isNaN(value)) {
+        return 'N/A';
+    }
     return new Intl.NumberFormat('pt-PT', {
         style: 'currency',
         currency: 'EUR',
@@ -1187,24 +1221,27 @@ function formatCurrency(value) {
     }).format(value);
 }
 
-function formatMultiplier(value) {
-    return `${value.toFixed(2)}x`;
-}
-
 // Função de formatação de número atualizada
 function formatNumber(value, decimals = 1) {
     return value != null ? Number(value).toFixed(decimals) : '';
 }
 
 function updateBestWorstSlots(estatisticas) {
-    document.getElementById('best-slot-x').textContent = estatisticas.best_bonus_x ?
-        `${estatisticas.best_bonus_x.slot.name} - ${formatMultiplier(estatisticas.best_bonus_x.multiplicador)}` : 'N/A';
-    document.getElementById('best-slot-euro').textContent = estatisticas.best_bonus_euro ?
-        `${estatisticas.best_bonus_euro.slot.name} - ${formatCurrency(estatisticas.best_bonus_euro.payout)}` : 'N/A';
-    document.getElementById('worst-slot-x').textContent = estatisticas.worst_bonus_x ?
-        `${estatisticas.worst_bonus_x.slot.name} - ${formatMultiplier(estatisticas.worst_bonus_x.multiplicador)}` : 'N/A';
-    document.getElementById('worst-slot-euro').textContent = estatisticas.worst_bonus_euro ?
-        `${estatisticas.worst_bonus_euro.slot.name} - ${formatCurrency(estatisticas.worst_bonus_euro.payout)}` : 'N/A';
+    const updateSlot = (id, slot, formatFunc) => {
+        const element = document.getElementById(id);
+        if (element) {
+            if (slot && slot.slot && slot.slot.name) {
+                element.textContent = `${slot.slot.name} - ${formatFunc(slot.multiplicador || slot.payout)}`;
+            } else {
+                element.textContent = 'N/A';
+            }
+        }
+    };
+
+    updateSlot('best-slot-x', estatisticas.best_bonus_x, formatMultiplier);
+    updateSlot('best-slot-euro', estatisticas.best_bonus_euro, formatCurrency);
+    updateSlot('worst-slot-x', estatisticas.worst_bonus_x, formatMultiplier);
+    updateSlot('worst-slot-euro', estatisticas.worst_bonus_euro, formatCurrency);
 }
 
 function appendNewBonusRow(newBonus, hunt) {
@@ -1481,4 +1518,75 @@ function updateSlotSearch(newSlot, clearExisting = false, showSuggestions = true
 function handleError(message) {
     console.error(message);
     alert(message);
+}
+
+function setupResetButton() {
+    const resetButton = document.getElementById('resetBonusOrder');
+    if (resetButton) {
+        resetButton.addEventListener('click', resetBonusOrder);
+    }
+}
+
+function resetBonusOrder(e) {
+    e.preventDefault();
+    const huntId = document.querySelector('#hunt-phase').dataset.huntId;
+    fetch(`/bonus-hunts/${huntId}/reset_bonus_order`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the hunt data in the page
+            const huntDataElement = document.getElementById('hunt-data');
+            if (huntDataElement) {
+                huntDataElement.dataset.hunt = JSON.stringify(data.hunt);
+            }
+
+            // Update the bonus table
+            updateBonusTable(data.hunt);
+            
+            // Update statistics
+            updateStatistics(data.hunt);
+
+            // Reset sorting indicators
+            const headers = document.querySelectorAll('#bonus-table th.sortable');
+            headers.forEach(header => header.classList.remove('asc', 'desc'));
+
+            // Trigger an update for the overlay
+            triggerOverlayUpdate(data.hunt);
+        } else {
+            throw new Error(data.error || 'Failed to reset bonus order');
+        }
+    })
+    .catch(error => {
+        console.error('Error resetting bonus order:', error);
+        alert('Failed to reset bonus order: ' + error.message);
+    });
+}
+
+function triggerOverlayUpdate(huntData) {
+    // Send a request to the server to update the overlay
+    fetch('/widgets/update_overlay', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(huntData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Overlay update triggered successfully');
+        } else {
+            console.error('Failed to trigger overlay update:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error triggering overlay update:', error);
+    });
 }

@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from flask_socketio import emit
 import logging
 import traceback
+from datetime import datetime
 
 bonus_hunts = Blueprint('bonus_hunts', __name__)
 logger = logging.getLogger(__name__)
@@ -169,9 +170,43 @@ def delete_hunt(id):
 @bonus_hunts.route('/')
 def list_hunts():
     hunts = BonusHunt.query.order_by(BonusHunt.data_criacao.desc()).all()
+    hunt_list = []
     for hunt in hunts:
-        hunt.estatisticas = hunt.calcular_estatisticas()
-    return render_template('bonus_hunts/list.html', hunts=hunts)
+        try:
+            hunt_dict = hunt.to_dict()
+            # Ensure data_criacao is always a formatted string
+            if isinstance(hunt_dict['data_criacao'], datetime):
+                hunt_dict['data_criacao'] = hunt_dict['data_criacao'].strftime('%d/%m/%Y %H:%M')
+            elif hunt_dict['data_criacao'] is None:
+                hunt_dict['data_criacao'] = 'N/A'
+            
+            # Ensure all required keys are present
+            hunt_dict.setdefault('estatisticas', {})
+            hunt_dict['estatisticas'].setdefault('investimento', 0)
+            hunt_dict['estatisticas'].setdefault('total_ganho', 0)
+            hunt_dict['estatisticas'].setdefault('num_bonus', 0)
+            hunt_dict['estatisticas'].setdefault('num_bonus_abertos', 0)
+            
+            hunt_list.append(hunt_dict)
+        except Exception as e:
+            logger.error(f"Error processing hunt {hunt.id}: {str(e)}")
+            # Add a minimal representation of the hunt
+            hunt_list.append({
+                'id': hunt.id,
+                'nome': hunt.nome,
+                'data_criacao': hunt.data_criacao.strftime('%d/%m/%Y %H:%M') if isinstance(hunt.data_criacao, datetime) else 'N/A',
+                'custo_inicial': float(hunt.custo_inicial) if hunt.custo_inicial is not None else 0,
+                'is_active': hunt.is_active,
+                'estatisticas': {
+                    'investimento': 0,
+                    'total_ganho': 0,
+                    'num_bonus': 0,
+                    'num_bonus_abertos': 0
+                },
+                'error': f'Error processing hunt data: {str(e)}'
+            })
+    
+    return render_template('bonus_hunts/list.html', hunts=hunt_list)
 
 @bonus_hunts.route('/<int:id>')
 def view_hunt(id):
@@ -428,19 +463,37 @@ def update_hunt_phase(id):
 
 @bonus_hunts.route('/<int:hunt_id>/update_bonus_order', methods=['POST'])
 def update_bonus_order(hunt_id):
-    hunt = BonusHunt.query.get_or_404(hunt_id)
-    new_order = request.json.get('order')
-    if new_order:
-        hunt.bonus_order = ','.join(map(str, new_order))
-        db.session.commit()
-        
-        # Emitir atualização para o overlay
-        emit_bonus_hunt_update()
-        
-        response = jsonify({'success': True})
-        response.headers.add('Content-Type', 'application/json')
-        return response
-    return jsonify({'success': False, 'error': 'No order provided'}), 400
+    try:
+        hunt = BonusHunt.query.get_or_404(hunt_id)
+        new_order = request.json.get('order')
+        if new_order:
+            hunt.bonus_order = ','.join(map(str, new_order))
+            db.session.commit()
+            
+            # Emitir atualização para o overlay
+            emit_bonus_hunt_update()
+            
+            return jsonify({'success': True, 'message': 'Bonus order updated successfully'})
+        return jsonify({'success': False, 'error': 'No order provided'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+@bonus_hunts.route('/<int:id>/reset_bonus_order', methods=['POST'])
+def reset_bonus_order(id):
+    hunt = BonusHunt.query.get_or_404(id)
+    
+    # Reset the order based on bonus IDs
+    hunt.bonuses.sort(key=lambda x: x.id)
+    hunt.bonus_order = ','.join(str(bonus.id) for bonus in hunt.bonuses)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Bonus order reset successfully',
+        'hunt': hunt.to_dict()
+    })
 
 def emit_bonus_hunt_update():
     current_hunt = BonusHunt.query.filter_by(is_active=True).first()

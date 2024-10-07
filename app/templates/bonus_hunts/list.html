@@ -26,31 +26,61 @@
             {% for hunt in hunts %}
             <tr>
                 <td>{{ hunt.nome }}</td>
-                <td>{{ hunt.data_criacao.strftime('%d/%m/%Y %H:%M') }}</td>
-                <td>€ {{ "%.2f"|format(hunt.custo_inicial) }}</td>
-                <td>€ {{ "%.2f"|format(hunt.estatisticas.investimento) }}</td>
-                <td>€ {{ "%.2f"|format(hunt.estatisticas.total_ganho) }}</td>
-                <td>{{ hunt.estatisticas.num_bonus_abertos }}/{{ hunt.estatisticas.num_bonus }}</td>
-                <td>{{ "Active" if hunt.is_active else "Inactive" }}</td>
                 <td>
-                    <a href="{{ url_for('bonus_hunts.view_hunt', id=hunt.id) }}" class="btn btn-sm action-btn btn-info" title="View">
+                    {% if hunt.data_criacao is string %}
+                    {{ hunt.data_criacao }}
+                    {% else %}
+                    {{ hunt.data_criacao.strftime('%d/%m/%Y %H:%M') }}
+                    {% endif %}
+                </td>
+                <td>€ {{ "%.2f"|format(hunt.custo_inicial) }}</td>
+                <td>€ {{ "%.2f"|format(hunt.estatisticas.investimento) if hunt.estatisticas and
+                    hunt.estatisticas.investimento is not none else 'N/A' }}</td>
+                <td>€ {{ "%.2f"|format(hunt.estatisticas.total_ganho) if hunt.estatisticas and
+                    hunt.estatisticas.total_ganho is not none else 'N/A' }}</td>
+                <td>
+                    {% if hunt.estatisticas %}
+                    {{ hunt.estatisticas.num_bonus_abertos | int }}/{{ hunt.estatisticas.num_bonus | int }}
+                    {% else %}
+                    N/A
+                    {% endif %}
+                </td>
+                <td>
+                    {% if hunt.phase == 'hunting' %}
+                        <span class="badge badge-warning">Hunting</span>
+                    {% elif hunt.phase == 'opening' %}
+                        <span class="badge badge-info">Opening</span>
+                    {% elif hunt.phase == 'ended' %}
+                        <span class="badge badge-success">Ended</span>
+                    {% else %}
+                        <span class="badge badge-secondary">Unknown</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('bonus_hunts.view_hunt', id=hunt.id) }}" class="btn btn-sm action-btn btn-info"
+                        title="View">
                         <i class="fas fa-search"></i>
                     </a>
-                    <button class="btn btn-sm action-btn btn-primary edit-hunt-btn" title="Edit" data-hunt-id="{{ hunt.id }}" data-hunt-name="{{ hunt.nome }}" data-hunt-balance="{{ hunt.custo_inicial }}">
+                    <button class="btn btn-sm action-btn btn-primary edit-hunt-btn" title="Edit"
+                        data-hunt-id="{{ hunt.id }}" data-hunt-name="{{ hunt.nome }}"
+                        data-hunt-balance="{{ hunt.custo_inicial }}">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <form action="{{ url_for('bonus_hunts.reset_hunt', id=hunt.id) }}" method="POST" style="display: inline;">
+                    <form action="{{ url_for('bonus_hunts.reset_hunt', id=hunt.id) }}" method="POST"
+                        style="display: inline;">
                         <button type="submit" class="btn btn-sm action-btn btn-warning" title="Reset">
                             <i class="fas fa-sync-alt"></i>
                         </button>
                     </form>
-                    <form action="{{ url_for('bonus_hunts.delete_hunt', id=hunt.id) }}" method="POST" style="display: inline;">
+                    <form action="{{ url_for('bonus_hunts.delete_hunt', id=hunt.id) }}" method="POST"
+                        style="display: inline;">
                         <button type="submit" class="btn btn-sm action-btn btn-danger" title="Delete">
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </form>
                     {% if not hunt.is_active %}
-                    <form action="{{ url_for('bonus_hunts.activate_hunt', id=hunt.id) }}" method="POST" style="display: inline;">
+                    <form action="{{ url_for('bonus_hunts.activate_hunt', id=hunt.id) }}" method="POST"
+                        style="display: inline;">
                         <button type="submit" class="btn btn-sm action-btn btn-outline-success" title="Activate">
                             <i class="fas fa-play"></i>
                         </button>
@@ -68,7 +98,8 @@
 </div>
 
 <!-- Create Hunt Modal -->
-<div class="modal fade" id="createHuntModal" tabindex="-1" role="dialog" aria-labelledby="createHuntModalLabel" aria-hidden="true">
+<div class="modal fade" id="createHuntModal" tabindex="-1" role="dialog" aria-labelledby="createHuntModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
@@ -85,7 +116,8 @@
                     </div>
                     <div class="form-group">
                         <label for="custo_inicial">Starting Balance</label>
-                        <input type="number" step="0.01" class="form-control" id="custo_inicial" name="custo_inicial" required>
+                        <input type="number" step="0.01" class="form-control" id="custo_inicial" name="custo_inicial"
+                            required>
                     </div>
                 </form>
             </div>
@@ -98,7 +130,8 @@
 </div>
 
 <!-- Edit Hunt Modal -->
-<div class="modal fade" id="editHuntModal" tabindex="-1" role="dialog" aria-labelledby="editHuntModalLabel" aria-hidden="true">
+<div class="modal fade" id="editHuntModal" tabindex="-1" role="dialog" aria-labelledby="editHuntModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
@@ -116,7 +149,8 @@
                     </div>
                     <div class="form-group">
                         <label for="edit-hunt-balance">Starting Balance</label>
-                        <input type="number" step="0.01" class="form-control" id="edit-hunt-balance" name="custo_inicial" required>
+                        <input type="number" step="0.01" class="form-control" id="edit-hunt-balance"
+                            name="custo_inicial" required>
                     </div>
                 </form>
             </div>
@@ -126,6 +160,9 @@
             </div>
         </div>
     </div>
+</div>
+</div>
+<div id="hunts-data" style="display: none;" data-hunts='{{ hunts | tojson | safe }}'></div>
 </div>
 
 {% endblock %}
