@@ -13,3 +13,4 @@ build/
 _backup/
 _inspiration/
 app/static/images/slots/
+.DS_Store

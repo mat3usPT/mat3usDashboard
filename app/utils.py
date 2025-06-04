@@ -1,7 +1,11 @@
-from flask import json
 from decimal import Decimal
+from flask.json.provider import DefaultJSONProvider
 
-def custom_json_encoder(obj):
-    if isinstance(obj, Decimal):
-        return float(obj)
-    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+class CustomJSONProvider(DefaultJSONProvider):
+    """JSON provider that converts ``Decimal`` instances to ``float``."""
+
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)

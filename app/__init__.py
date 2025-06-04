@@ -2,7 +2,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from config import Config
-from app.utils import custom_json_encoder
+from app.utils import CustomJSONProvider
 
 # Initialize extensions
 db = SQLAlchemy()
@@ -26,6 +26,7 @@ def create_app(config_class=Config):
     app.register_blueprint(main_blueprint)
 
     # Set up custom JSON encoding
-    app.json.encoder = custom_json_encoder
+    app.json_provider_class = CustomJSONProvider
+    app.json = app.json_provider_class(app)
 
     return app
